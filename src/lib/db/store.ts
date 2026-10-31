@@ -28,6 +28,23 @@ class DataStore {
   private integrationLogs: IntegrationLog[] = [...SEED_INTEGRATION_LOGS];
   private auditLogs: AuditLog[] = [...SEED_AUDIT_LOGS];
 
+  // Test helper: Allows unit tests to reset store with test fixtures
+  resetForTesting(testData?: {
+    users?: User[];
+    events?: EventItem[];
+    registrations?: Registration[];
+    announcements?: Announcement[];
+    integrationLogs?: IntegrationLog[];
+    auditLogs?: AuditLog[];
+  }) {
+    this.users = testData?.users ? [...testData.users] : [...SEED_USERS];
+    this.events = testData?.events ? [...testData.events] : [...SEED_EVENTS];
+    this.registrations = testData?.registrations ? [...testData.registrations] : [...SEED_REGISTRATIONS];
+    this.announcements = testData?.announcements ? [...testData.announcements] : [...SEED_ANNOUNCEMENTS];
+    this.integrationLogs = testData?.integrationLogs ? [...testData.integrationLogs] : [...SEED_INTEGRATION_LOGS];
+    this.auditLogs = testData?.auditLogs ? [...testData.auditLogs] : [...SEED_AUDIT_LOGS];
+  }
+
   // ============================================================================
   // USERS
   // ============================================================================

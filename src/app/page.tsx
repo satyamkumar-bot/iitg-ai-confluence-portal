@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { dataStore } from "@/lib/db/store";
 import { EventCard } from "@/components/events/EventCard";
-import { DemoDataNotice } from "@/components/common/DemoDataNotice";
 import { formatDate } from "@/lib/utils";
 
 export const revalidate = 60; // Cache on edge/CDN for 60 seconds to support 1000+ student bursts
@@ -98,8 +97,6 @@ export default async function HomePage() {
 
       {/* Main Content Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
-        <DemoDataNotice />
-
         {/* How Registration Works Section */}
         <section className="space-y-6">
           <div className="text-center max-w-2xl mx-auto space-y-2">
@@ -170,11 +167,21 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredEvents.map((evt) => (
-              <EventCard key={evt.id} event={evt} />
-            ))}
-          </div>
+          {featuredEvents.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredEvents.map((evt) => (
+                <EventCard key={evt.id} event={evt} />
+              ))}
+            </div>
+          ) : (
+            <div className="p-12 text-center bg-white rounded-xl border border-dashed border-slate-300 space-y-3">
+              <Calendar className="w-10 h-10 text-slate-400 mx-auto" />
+              <div className="text-base font-bold text-slate-800">No events currently scheduled</div>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Organizers are currently finalizing the conference tracks and Microsoft Forms registration links. Please check back shortly!
+              </p>
+            </div>
+          )}
         </section>
 
         {/* Categories Showcase */}
