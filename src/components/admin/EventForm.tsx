@@ -76,22 +76,60 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
     }
   };
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const resizeImageToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onerror = reject;
+        img.onload = () => {
+          const maxWidth = 1200;
+          const maxHeight = 630;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(e.target?.result as string);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL("image/jpeg", 0.82);
+          resolve(compressed);
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setErrorMsg("Image size exceeds 5MB limit. Please upload a smaller image.");
+    if (file.size > 15 * 1024 * 1024) {
+      setErrorMsg("Image size exceeds 15MB. Please choose a smaller image.");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setBannerUrl(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      setErrorMsg(null);
+      const optimized = await resizeImageToDataUrl(file);
+      setBannerUrl(optimized);
+    } catch {
+      setErrorMsg("Failed to process image. Please try another image file.");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,8 +177,23 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
         body: JSON.stringify(payload),
       });
 
+      if (!res.ok) {
+        if (res.status === 413) {
+          throw new Error("Payload or banner image exceeds maximum allowed size. Please upload a smaller image.");
+        }
+        let serverError = `Error (${res.status})`;
+        try {
+          const errData = await res.json();
+          serverError = errData.error || serverError;
+        } catch {
+          const text = await res.text();
+          if (text) serverError = text.slice(0, 120);
+        }
+        throw new Error(serverError);
+      }
+
       const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || "Failed to save event");
       }
 
