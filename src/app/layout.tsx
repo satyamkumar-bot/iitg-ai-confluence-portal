@@ -4,7 +4,6 @@ import "./globals.css";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { DevAuthBanner } from "@/components/auth/DevAuthBanner";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -23,7 +22,6 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body className="min-h-screen flex flex-col bg-slate-50 text-slate-900 antialiased font-sans">
         <SessionProvider>
-          <DevAuthBanner />
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />

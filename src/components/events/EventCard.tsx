@@ -29,11 +29,6 @@ export function EventCard({ event }: { event: EventItem }) {
           <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/90 text-slate-900 shadow-sm backdrop-blur-xs">
             {event.category}
           </span>
-          {event.is_demo && (
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white shadow-xs">
-              DEMO DATA
-            </span>
-          )}
         </div>
         <div className="absolute top-3 right-3">
           {isClosed ? (
@@ -65,7 +60,7 @@ export function EventCard({ event }: { event: EventItem }) {
           <div className="space-y-2 text-xs text-slate-600 pt-2 border-t border-slate-100">
             <div className="flex items-center gap-2">
               <Calendar className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
-              <span>{formatDate(event.event_start_at)}</span>
+              <span>{formatDate(event.event_start_at || event.registration_open_at)}</span>
             </div>
             <div className="flex items-center gap-2">
               <MapPin className="w-3.5 h-3.5 text-cyan-600 shrink-0" />

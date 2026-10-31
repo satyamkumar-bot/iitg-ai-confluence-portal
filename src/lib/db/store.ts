@@ -151,7 +151,9 @@ class DataStore {
     }
 
     return list.sort(
-      (a, b) => new Date(a.event_start_at).getTime() - new Date(b.event_start_at).getTime()
+      (a, b) =>
+        new Date(a.event_start_at || a.registration_open_at).getTime() -
+        new Date(b.event_start_at || b.registration_open_at).getTime()
     );
   }
 
@@ -232,6 +234,7 @@ class DataStore {
   // ============================================================================
   async getRegistrations(options?: {
     studentUserId?: string;
+    studentEmail?: string;
     eventId?: string;
     status?: string;
     syncStatus?: string;
@@ -240,8 +243,13 @@ class DataStore {
   }): Promise<Registration[]> {
     let list = [...this.registrations];
 
-    if (options?.studentUserId) {
-      list = list.filter((r) => r.student_user_id === options.studentUserId);
+    if (options?.studentUserId || options?.studentEmail) {
+      const uid = options?.studentUserId;
+      const email = options?.studentEmail?.trim().toLowerCase();
+      list = list.filter((r) =>
+        (uid && r.student_user_id === uid) ||
+        (email && r.respondent_email.toLowerCase() === email)
+      );
     }
 
     if (options?.eventId && options.eventId !== "ALL") {
@@ -294,9 +302,14 @@ class DataStore {
       throw new Error(`Event not found with ID ${payload.eventId}`);
     }
 
-    // 1. Check duplicate via unique source_response_id per event
+    const normalizedEmail = payload.respondentEmail.trim().toLowerCase();
+
+    // 1. Check duplicate via unique source_response_id OR (event_id, respondent_email)
     const existingIndex = this.registrations.findIndex(
-      (r) => r.event_id === payload.eventId && r.source_response_id === payload.sourceResponseId
+      (r) =>
+        r.event_id === payload.eventId &&
+        (r.source_response_id === payload.sourceResponseId ||
+          r.respondent_email.toLowerCase() === normalizedEmail)
     );
 
     if (existingIndex >= 0) {
@@ -310,20 +323,33 @@ class DataStore {
         operation: "INGEST_FORM_RESPONSE",
         outcome: "DUPLICATE_SKIPPED",
         metadata: {
-          message: "Response with same source response ID already ingested; returned existing record.",
+          message: "Student already registered for this event. Returned existing registration record.",
           referenceNumber: existing.reference_number,
+          respondentEmail: payload.respondentEmail,
         },
       });
 
       return {
         registration: { ...existing },
         isDuplicate: true,
-        unresolvedStudent: existing.sync_status === "UNRESOLVED_STUDENT",
+        unresolvedStudent: false,
       };
     }
 
-    // 2. Identity Matching: Match email securely against registered students
-    const matchedUser = await this.getUserByEmail(payload.respondentEmail);
+    // 2. Identity Matching:
+    let matchedUser = await this.getUserByEmail(normalizedEmail);
+    const isInstitutionalEmail = normalizedEmail.endsWith("iitg.ac.in");
+
+    // Auto-create student user for institutional emails if not already present
+    if (!matchedUser && isInstitutionalEmail) {
+      matchedUser = await this.upsertUser({
+        email: normalizedEmail,
+        display_name: payload.respondentName || normalizedEmail.split("@")[0].replace(".", " "),
+        role: "STUDENT",
+        department: "Data Science and Artificial Intelligence",
+      });
+    }
+
     const isUnresolved = !matchedUser;
 
     const newRegistration: Registration = {
@@ -334,20 +360,20 @@ class DataStore {
       event_slug: event.slug,
       student_user_id: matchedUser ? matchedUser.id : null,
       student_name: matchedUser ? matchedUser.display_name : (payload.respondentName ?? null),
-      respondent_email: payload.respondentEmail.trim().toLowerCase(),
+      respondent_email: normalizedEmail,
       source_response_id: payload.sourceResponseId,
       submitted_at: payload.submittedAt || new Date().toISOString(),
       synchronized_at: new Date().toISOString(),
       response_data: payload.answers,
       team_data: payload.teamInfo ?? null,
       response_received_status: "RECEIVED",
-      // Important: By specification, form submission does NOT automatically mean confirmed!
-      registration_status: "AWAITING_REVIEW",
+      // Direct registration confirmation for institutional students
+      registration_status: isUnresolved ? "AWAITING_REVIEW" : "CONFIRMED",
       sync_status: isUnresolved ? "UNRESOLVED_STUDENT" : "SUCCESS",
       review_required: isUnresolved,
       review_notes: isUnresolved
-        ? `Unmatched respondent email '${payload.respondentEmail}'. Requires manual identity resolution by organizer.`
-        : null,
+        ? `External/unmatched respondent email '${payload.respondentEmail}'. Requires manual identity resolution by organizer.`
+        : "Direct automatic registration confirmation.",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       is_demo: false,
@@ -362,11 +388,7 @@ class DataStore {
       event_title: event.title,
       source_reference: payload.sourceResponseId,
       operation: "INGEST_FORM_RESPONSE",
-      outcome: isUnresolved ? "UNMATCHED_IDENTITY" : "SUCCESS",
-      error_code: isUnresolved ? "STUDENT_NOT_FOUND" : undefined,
-      sanitized_error_message: isUnresolved
-        ? `No active user matches email '${payload.respondentEmail}'. Record saved for review.`
-        : undefined,
+      outcome: "SUCCESS",
       metadata: {
         referenceNumber: newRegistration.reference_number,
         respondentEmail: payload.respondentEmail,

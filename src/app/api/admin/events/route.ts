@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/session";
-import { dataStore } from "@/lib/db/store";
 import { eventSchema } from "@/lib/validation/schemas";
+import { dataStore } from "@/lib/db/store";
+import { getCurrentUser } from "@/lib/auth/session";
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,11 +13,13 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const category = searchParams.get("category") || undefined;
     const search = searchParams.get("search") || undefined;
+    const statusFilter = searchParams.get("status") || undefined;
 
     const events = await dataStore.getEvents({
-      onlyPublished: false, // Organizers see Draft, Published, etc.
+      onlyPublished: false,
       category,
       search,
+      statusFilter,
     });
 
     return NextResponse.json({ success: true, events });
@@ -48,7 +50,7 @@ export async function POST(req: NextRequest) {
         ...validation.data,
         form_integration_type: "POWER_AUTOMATE_WEBHOOK",
         created_by: user.id,
-      },
+      } as any,
       user.id
     );
 

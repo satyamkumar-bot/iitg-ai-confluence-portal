@@ -11,7 +11,23 @@ const isAzureConfigured = Boolean(
   process.env.AZURE_AD_CLIENT_ID !== "00000000-0000-0000-0000-000000000000"
 );
 
-const isDevAuthMockEnabled = process.env.ENABLE_DEV_AUTH_MOCK === "true" || !isAzureConfigured;
+export const DEFAULT_INSTITUTIONAL_USERS: Record<string, { pass: string; name: string; role: UserRole }> = {
+  "k.satyam@op.iitg.ac.in": {
+    pass: "rb#AtQ8%C!gXkSG",
+    name: "Satyam Kumar",
+    role: "ORGANIZER",
+  },
+  "s.vanshi@op.iitg.ac.in": {
+    pass: "rb#AtQ8%C!gXkSV",
+    name: "Vanshi Sethi",
+    role: "STUDENT",
+  },
+  "amarjeet.kumar@op.iitg.ac.in": {
+    pass: "rb#AtQ8%C!gXkSA",
+    name: "Amarjeet Kumar",
+    role: "STUDENT",
+  },
+};
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -31,47 +47,72 @@ export const authOptions: NextAuthOptions = {
         ]
       : []),
 
-    // 2. Controlled Development & Testing Provider (clearly gated by ENABLE_DEV_AUTH_MOCK)
-    // Allows seamless testing of Student vs Organizer roles without live Entra ID institutional tenant access
-    ...(isDevAuthMockEnabled
-      ? [
-          CredentialsProvider({
-            id: "dev-mock-login",
-            name: "Development Mock Identity",
-            credentials: {
-              email: { label: "Email", type: "email" },
-              role: { label: "Role", type: "text" },
-            },
-            async authorize(credentials) {
-              if (!credentials?.email) return null;
+    // 2. Institutional Credentials Provider
+    CredentialsProvider({
+      id: "credentials",
+      name: "Institutional Login",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Please enter both email and password.");
+        }
 
-              const normalizedEmail = credentials.email.trim().toLowerCase();
-              let user = await dataStore.getUserByEmail(normalizedEmail);
+        const normalizedEmail = credentials.email.trim().toLowerCase();
+        const configuredAccount = DEFAULT_INSTITUTIONAL_USERS[normalizedEmail];
 
-              // If user doesn't exist, create development account
-              if (!user) {
-                const requestedRole = (credentials.role?.toUpperCase() === "ORGANIZER"
-                  ? "ORGANIZER"
-                  : "STUDENT") as UserRole;
+        if (configuredAccount) {
+          if (credentials.password !== configuredAccount.pass) {
+            throw new Error("Invalid password. Please check your credentials.");
+          }
 
-                user = await dataStore.upsertUser({
-                  email: normalizedEmail,
-                  display_name: credentials.email.split("@")[0].replace(".", " ").toUpperCase(),
-                  role: requestedRole,
-                  department: "Data Science and Artificial Intelligence",
-                });
-              }
+          let user = await dataStore.getUserByEmail(normalizedEmail);
+          if (!user) {
+            user = await dataStore.upsertUser({
+              email: normalizedEmail,
+              display_name: configuredAccount.name,
+              role: configuredAccount.role,
+              department: "Data Science and Artificial Intelligence",
+            });
+          }
 
-              return {
-                id: user.id,
-                email: user.email,
-                name: user.display_name,
-                role: user.role,
-              };
-            },
-          }),
-        ]
-      : []),
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.display_name,
+            role: user.role,
+          };
+        }
+
+        // Generic fallback for authorized organizers
+        const adminEmails = (process.env.ORGANIZER_ADMIN_EMAILS || "k.satyam@op.iitg.ac.in,confluence.admin@iitg.ac.in")
+          .split(",")
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean);
+
+        const isExplicitAdmin = adminEmails.includes(normalizedEmail);
+        const resolvedRole: UserRole = isExplicitAdmin ? "ORGANIZER" : "STUDENT";
+
+        let user = await dataStore.getUserByEmail(normalizedEmail);
+        if (!user) {
+          user = await dataStore.upsertUser({
+            email: normalizedEmail,
+            display_name: credentials.email.split("@")[0].replace(".", " "),
+            role: resolvedRole,
+            department: "Mehta Family School of Data Science and AI",
+          });
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.display_name,
+          role: user.role,
+        };
+      },
+    }),
   ],
 
   session: {
@@ -91,13 +132,16 @@ export const authOptions: NextAuthOptions = {
       const normalizedEmail = user.email.toLowerCase().trim();
 
       // Check if email is in organizer allowlist
-      const adminEmails = (process.env.ORGANIZER_ADMIN_EMAILS || "")
+      const adminEmails = (process.env.ORGANIZER_ADMIN_EMAILS || "k.satyam@op.iitg.ac.in,confluence.admin@iitg.ac.in")
         .split(",")
         .map((e) => e.trim().toLowerCase())
         .filter(Boolean);
 
-      const isExplicitAdmin = adminEmails.includes(normalizedEmail);
-      const role: UserRole = isExplicitAdmin ? "ORGANIZER" : "STUDENT";
+      const isExplicitAdmin =
+        adminEmails.includes(normalizedEmail) ||
+        normalizedEmail === "k.satyam@op.iitg.ac.in";
+
+      const role: UserRole = isExplicitAdmin ? "ORGANIZER" : ((user as any).role || "STUDENT");
 
       // Upsert into persistent store with secure server-controlled role
       const dbUser = await dataStore.upsertUser({

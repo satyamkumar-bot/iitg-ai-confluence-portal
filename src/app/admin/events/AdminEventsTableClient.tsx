@@ -158,7 +158,7 @@ export function AdminEventsTableClient({
                       </div>
                     </td>
                     <td className="py-3 px-3 text-slate-600 whitespace-nowrap">
-                      {formatDate(evt.event_start_at)}
+                      {formatDate(evt.event_start_at || evt.registration_open_at)}
                     </td>
                     <td className="py-3 px-3 text-slate-600 whitespace-nowrap">
                       {formatDate(evt.registration_close_at)}

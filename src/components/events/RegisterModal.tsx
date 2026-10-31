@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { X, ExternalLink, ShieldCheck, AlertCircle, RefreshCw, FileText } from "lucide-react";
-import { EventItem } from "@/types";
+import { X, ExternalLink, ShieldCheck, AlertCircle, RefreshCw, FileText, CheckCircle2 } from "lucide-react";
+import { EventItem, Registration } from "@/types";
+import Link from "next/link";
 
 interface RegisterModalProps {
   event: EventItem;
   isOpen: boolean;
   onClose: () => void;
+  userRegistration?: Registration | null;
 }
 
-export function RegisterModal({ event, isOpen, onClose }: void | any) {
+export function RegisterModal({ event, isOpen, onClose, userRegistration }: RegisterModalProps) {
   const [embedView, setEmbedView] = useState(false);
 
   if (!isOpen) return null;
@@ -41,8 +43,32 @@ export function RegisterModal({ event, isOpen, onClose }: void | any) {
 
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-5 text-sm">
-          {/* Deadline check */}
-          {isPastDeadline ? (
+          {/* Already registered check */}
+          {userRegistration ? (
+            <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 space-y-3 text-center">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center mx-auto text-emerald-700">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-bold text-base text-emerald-950">You Are Already Registered!</h4>
+                <p className="text-xs text-emerald-800 mt-1">
+                  We have already received and confirmed your registration for this event.
+                </p>
+              </div>
+              <div className="p-3 bg-white/80 rounded-xl border border-emerald-200 font-mono text-xs">
+                Registration Ref: <span className="font-bold text-emerald-900">{userRegistration.reference_number}</span>
+                <span className="block text-[11px] text-emerald-700 mt-0.5">Status: {userRegistration.registration_status}</span>
+              </div>
+              <div className="pt-2 flex justify-center">
+                <Link
+                  href="/registrations"
+                  className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs shadow-xs transition-colors"
+                >
+                  Go to My Registrations
+                </Link>
+              </div>
+            </div>
+          ) : isPastDeadline ? (
             <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
               <div>
@@ -65,21 +91,20 @@ export function RegisterModal({ event, isOpen, onClose }: void | any) {
             </div>
           ) : (
             <>
-              {/* Important Synchronization Disclaimer (Mandatory per Section 9) */}
+              {/* Important Synchronization Disclaimer */}
               <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl text-blue-900 text-xs space-y-2">
                 <div className="flex items-center gap-2 font-bold text-blue-950">
                   <RefreshCw className="w-4 h-4 text-cyan-600" />
-                  <span>How Centralized Registration Tracking Works</span>
+                  <span>Direct Registration Confirmation</span>
                 </div>
                 <p className="leading-relaxed">
-                  1. You will be directed to the official <strong>Microsoft Forms</strong> registration questionnaire for this event.
+                  1. Fill out the official <strong>Microsoft Forms</strong> registration questionnaire for this event.
                 </p>
                 <p className="leading-relaxed">
-                  2. <strong>Important:</strong> Opening the form does <em>not</em> mark you as registered. You must submit your complete response inside Microsoft Forms.
+                  2. Upon form submission, your registration is directly matched to your institutional student identity and marked <strong>Confirmed</strong>.
                 </p>
                 <p className="leading-relaxed">
-                  3. Upon form submission, Microsoft Power Automate will synchronize your response securely to your student account. It will then appear on your{" "}
-                  <strong>My Registrations</strong> page with status <em>Awaiting Review</em> or <em>Confirmed</em>.
+                  3. You can review your confirmed status anytime under <strong>My Registrations</strong>.
                 </p>
               </div>
 

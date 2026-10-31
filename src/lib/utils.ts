@@ -9,7 +9,8 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Format ISO date string to human readable date
  */
-export function formatDate(dateString: string): string {
+export function formatDate(dateString?: string | null): string {
+  if (!dateString) return "—";
   try {
     const d = new Date(dateString);
     if (isNaN(d.getTime())) return dateString;
@@ -26,7 +27,8 @@ export function formatDate(dateString: string): string {
 /**
  * Format ISO date string to human readable date & time
  */
-export function formatDateTime(dateString: string): string {
+export function formatDateTime(dateString?: string | null): string {
+  if (!dateString) return "—";
   try {
     const d = new Date(dateString);
     if (isNaN(d.getTime())) return dateString;

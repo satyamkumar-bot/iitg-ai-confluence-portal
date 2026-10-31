@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { Registration, RegistrationStatus } from "@/types";
 import { formatDate, formatDateTime, getRegistrationStatusBadge, getSyncStatusBadge } from "@/lib/utils";
-import { DemoDataNotice } from "@/components/common/DemoDataNotice";
 
 export function MyRegistrationsClient({
   initialRegistrations,
@@ -60,16 +59,13 @@ export function MyRegistrationsClient({
         </p>
       </div>
 
-      <DemoDataNotice />
-
       {/* Synchronization Explanation Banner */}
-      <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-2xl text-xs text-blue-950 flex items-start gap-3">
-        <RefreshCw className="w-4 h-4 text-cyan-700 shrink-0 mt-0.5" />
+      <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl text-xs text-emerald-950 flex items-start gap-3">
+        <RefreshCw className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <div className="font-bold text-blue-900">Understanding Registration Lifecycle</div>
+          <div className="font-bold text-emerald-900">Direct Registration Confirmation</div>
           <div className="text-slate-600 leading-relaxed">
-            1. <strong>Form Submitted</strong> &rarr; 2. <strong>Received by Backend</strong> &rarr; 3. <strong>Synchronized</strong> &rarr; 4. <strong>Organizer Review (Awaiting Review &rarr; Confirmed / Waitlisted)</strong>.
-            If you just submitted a form in Microsoft Forms, please allow up to 60 seconds for Power Automate to deliver the payload.
+            Submissions via Microsoft Forms are automatically ingested, directly <strong>Confirmed</strong>, and instantly linked to your account.
           </div>
         </div>
       </div>

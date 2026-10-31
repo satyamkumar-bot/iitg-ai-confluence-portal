@@ -72,7 +72,10 @@ export default function BrowseEventsPage() {
       })
       .sort((a, b) => {
         if (sortBy === "date") {
-          return new Date(a.event_start_at).getTime() - new Date(b.event_start_at).getTime();
+          return (
+            new Date(a.event_start_at || a.registration_open_at).getTime() -
+            new Date(b.event_start_at || b.registration_open_at).getTime()
+          );
         } else if (sortBy === "deadline") {
           return new Date(a.registration_close_at).getTime() - new Date(b.registration_close_at).getTime();
         } else {

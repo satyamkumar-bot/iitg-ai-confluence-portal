@@ -60,8 +60,8 @@ export interface EventItem {
   full_description: string;
   category: string;
   banner_url?: string | null;
-  event_start_at: string;
-  event_end_at: string;
+  event_start_at?: string | null;
+  event_end_at?: string | null;
   timezone: string;
   venue: string;
   participation_mode: ParticipationMode;

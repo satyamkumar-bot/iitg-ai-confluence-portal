@@ -354,21 +354,21 @@ describe("IIT Guwahati AI Confluence Registration Portal - Core Workflows", () =
     expect(result.success).toBe(false);
   });
 
-  // Test 6: Valid Microsoft Forms payload creates registration record with AWAITING_REVIEW
-  it("Test 6: Valid webhook payload creates registration record and defaults to AWAITING_REVIEW (not auto-confirmed)", async () => {
+  // Test 6: Valid Microsoft Forms payload creates registration record with direct CONFIRMED status
+  it("Test 6: Valid webhook payload creates registration record and directly confirms for institutional student", async () => {
     const payload = {
       eventId: "evt-001-inventathon",
       sourceResponseId: `test-unique-response-${Date.now()}`,
-      respondentEmail: "rahul.sharma@iitg.ac.in",
-      respondentName: "Rahul Sharma",
+      respondentEmail: "ananya.roy@iitg.ac.in",
+      respondentName: "Ananya Roy",
       submittedAt: new Date().toISOString(),
       answers: {
         "Track Selection": "GenAI for Healthcare",
-        "Repository": "https://github.com/rahul/test-repo",
+        "Repository": "https://github.com/ananya/test-repo",
       },
       teamInfo: {
         teamName: "AlphaAgents",
-        members: [{ name: "Rahul Sharma", email: "rahul.sharma@iitg.ac.in" }],
+        members: [{ name: "Ananya Roy", email: "ananya.roy@iitg.ac.in" }],
       },
     };
 
@@ -379,9 +379,9 @@ describe("IIT Guwahati AI Confluence Registration Portal - Core Workflows", () =
     // Ingestion succeeds
     const result = await dataStore.ingestMicrosoftFormsWebhook(validated.data!);
     expect(result.registration.event_id).toBe("evt-001-inventathon");
-    expect(result.registration.respondent_email).toBe("rahul.sharma@iitg.ac.in");
-    expect(result.registration.student_user_id).toBe("usr-student-001");
-    expect(result.registration.registration_status).toBe("AWAITING_REVIEW");
+    expect(result.registration.respondent_email).toBe("ananya.roy@iitg.ac.in");
+    expect(result.registration.student_user_id).toBe("usr-student-002");
+    expect(result.registration.registration_status).toBe("CONFIRMED");
     expect(result.isDuplicate).toBe(false);
   });
 
@@ -391,7 +391,7 @@ describe("IIT Guwahati AI Confluence Registration Portal - Core Workflows", () =
     const payload = {
       eventId: "evt-001-inventathon",
       sourceResponseId: uniqueSourceId,
-      respondentEmail: "rahul.sharma@iitg.ac.in",
+      respondentEmail: "priya.patel@iitg.ac.in",
       submittedAt: new Date().toISOString(),
       answers: { "Track": "AI in Agriculture" },
     };

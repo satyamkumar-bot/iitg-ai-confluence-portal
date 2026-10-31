@@ -10,7 +10,10 @@ export default async function MyRegistrationsPage() {
   }
 
   // Fetch only this student's registrations
-  const registrations = await dataStore.getRegistrations({ studentUserId: user.id });
+  const registrations = await dataStore.getRegistrations({
+    studentUserId: user.id,
+    studentEmail: user.email,
+  });
 
   return <MyRegistrationsClient initialRegistrations={registrations} />;
 }

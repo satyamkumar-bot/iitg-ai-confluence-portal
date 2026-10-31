@@ -11,10 +11,10 @@ import {
   Trash2,
   Calendar,
   MapPin,
-  Users,
   Clock,
   Sparkles,
-  Link as LinkIcon,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -35,25 +35,21 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
   const [shortDescription, setShortDescription] = useState(initialEvent?.short_description || "");
   const [fullDescription, setFullDescription] = useState(initialEvent?.full_description || "");
   const [bannerUrl, setBannerUrl] = useState(initialEvent?.banner_url || "");
-  const [eventStartAt, setEventStartAt] = useState(
-    initialEvent?.event_start_at ? new Date(initialEvent.event_start_at).toISOString().slice(0, 16) : "2026-11-14T09:00"
-  );
-  const [eventEndAt, setEventEndAt] = useState(
-    initialEvent?.event_end_at ? new Date(initialEvent.event_end_at).toISOString().slice(0, 16) : "2026-11-15T21:00"
-  );
   const [timezone, setTimezone] = useState(initialEvent?.timezone || "Asia/Kolkata");
   const [venue, setVenue] = useState(initialEvent?.venue || "Auditorium, IIT Guwahati");
   const [participationMode, setParticipationMode] = useState<any>(initialEvent?.participation_mode || "IN_PERSON");
   const [regOpenAt, setRegOpenAt] = useState(
-    initialEvent?.registration_open_at ? new Date(initialEvent.registration_open_at).toISOString().slice(0, 16) : "2026-10-01T00:00"
+    initialEvent?.registration_open_at
+      ? new Date(initialEvent.registration_open_at).toISOString().slice(0, 16)
+      : new Date().toISOString().slice(0, 16)
   );
   const [regCloseAt, setRegCloseAt] = useState(
-    initialEvent?.registration_close_at ? new Date(initialEvent.registration_close_at).toISOString().slice(0, 16) : "2026-11-08T23:59"
+    initialEvent?.registration_close_at
+      ? new Date(initialEvent.registration_close_at).toISOString().slice(0, 16)
+      : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
   );
   const [eligibility, setEligibility] = useState(initialEvent?.eligibility || "Open to all enrolled university students.");
   const [participationType, setParticipationType] = useState<any>(initialEvent?.participation_type || "INDIVIDUAL");
-  const [minTeam, setMinTeam] = useState(initialEvent?.minimum_team_size || 1);
-  const [maxTeam, setMaxTeam] = useState(initialEvent?.maximum_team_size || 1);
   const [prerequisites, setPrerequisites] = useState(initialEvent?.prerequisites || "");
   const [selectionCriteria, setSelectionCriteria] = useState(initialEvent?.selection_criteria || "");
   const [certificateInfo, setCertificateInfo] = useState(initialEvent?.certificate_information || "Certificate of Participation.");
@@ -65,7 +61,7 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
   const [agenda, setAgenda] = useState(initialEvent?.agenda || [{ time: "09:00 AM", title: "Inauguration" }]);
   const [prizes, setPrizes] = useState(initialEvent?.prizes || [{ position: "1st Place", prize: "INR 50,000" }]);
   const [coordinators, setCoordinators] = useState(
-    initialEvent?.coordinator_information || [{ name: "Coordinator Name", role: "Lead", email: "coord@iitg.ac.in", phone: "+91-0000000000" }]
+    initialEvent?.coordinator_information || [{ name: "Satyam Kumar", role: "Lead Organizer", email: "k.satyam@op.iitg.ac.in", phone: "+91-9876543210" }]
   );
 
   const handleTitleChange = (val: string) => {
@@ -80,6 +76,24 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
     }
   };
 
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg("Image size exceeds 5MB limit. Please upload a smaller image.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setBannerUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -92,8 +106,8 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
       short_description: shortDescription,
       full_description: fullDescription,
       banner_url: bannerUrl || undefined,
-      event_start_at: new Date(eventStartAt).toISOString(),
-      event_end_at: new Date(eventEndAt).toISOString(),
+      event_start_at: new Date(regOpenAt).toISOString(),
+      event_end_at: new Date(regCloseAt).toISOString(),
       timezone,
       venue,
       participation_mode: participationMode,
@@ -101,8 +115,8 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
       registration_close_at: new Date(regCloseAt).toISOString(),
       eligibility,
       participation_type: participationType,
-      minimum_team_size: Number(minTeam),
-      maximum_team_size: Number(maxTeam),
+      minimum_team_size: 1,
+      maximum_team_size: 1,
       rules,
       agenda,
       prerequisites: prerequisites || null,
@@ -238,15 +252,43 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
             />
           </div>
 
-          <div className="sm:col-span-2 space-y-1">
-            <label className="font-semibold text-slate-700">Banner Image URL</label>
-            <input
-              type="url"
-              value={bannerUrl}
-              onChange={(e) => setBannerUrl(e.target.value)}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500"
-            />
+          {/* Banner Upload (Replacing image URL) */}
+          <div className="sm:col-span-2 space-y-2">
+            <label className="font-semibold text-slate-700 flex items-center gap-1.5">
+              <ImageIcon className="w-4 h-4 text-cyan-600" />
+              <span>Event Banner Image Upload</span>
+            </label>
+            {bannerUrl ? (
+              <div className="relative rounded-xl overflow-hidden border border-slate-200 group bg-slate-900 max-h-56">
+                <img
+                  src={bannerUrl}
+                  alt="Banner preview"
+                  className="w-full h-48 object-cover opacity-90 group-hover:opacity-60 transition-opacity"
+                />
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={() => setBannerUrl("")}
+                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-md transition-colors flex items-center gap-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Remove Banner</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <label className="border-2 border-dashed border-slate-300 hover:border-cyan-500 rounded-xl p-6 text-center cursor-pointer bg-slate-50 hover:bg-cyan-50/40 transition-colors block">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageFileChange}
+                  className="hidden"
+                />
+                <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                <p className="text-xs font-semibold text-slate-700">Click to upload banner image</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">PNG, JPG, WebP up to 5MB</p>
+              </label>
+            )}
           </div>
 
           <div className="sm:col-span-2 space-y-1">
@@ -275,35 +317,13 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
         </div>
       </div>
 
-      {/* Dates, Venue & Registration Window */}
+      {/* Registration Timeline & Venue */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
         <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
-          Schedule & Registration Timeline
+          Registration Timeline & Venue
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-          <div className="space-y-1">
-            <label className="font-semibold text-slate-700">Event Start Date & Time *</label>
-            <input
-              type="datetime-local"
-              required
-              value={eventStartAt}
-              onChange={(e) => setEventStartAt(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="font-semibold text-slate-700">Event End Date & Time *</label>
-            <input
-              type="datetime-local"
-              required
-              value={eventEndAt}
-              onChange={(e) => setEventEndAt(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500"
-            />
-          </div>
-
           <div className="space-y-1">
             <label className="font-semibold text-slate-700">Registration Opens At *</label>
             <input
@@ -353,14 +373,14 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
         </div>
       </div>
 
-      {/* Participation Rules & Microsoft Forms Link */}
+      {/* Microsoft Forms Link & Eligibility */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
         <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
-          Microsoft Forms Link & Participation Mode
+          Microsoft Forms Link & Eligibility
         </h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-          <div className="sm:col-span-3 space-y-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <div className="sm:col-span-2 space-y-1">
             <label className="font-semibold text-slate-700">Microsoft Forms Registration URL</label>
             <input
               type="url"
@@ -370,12 +390,12 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
               className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-mono focus:ring-2 focus:ring-cyan-500"
             />
             <p className="text-[11px] text-slate-500">
-              Students will submit their response here. Power Automate synchronizes the response back to our portal.
+              Students submit their responses in this Microsoft Form. Responses synchronize automatically to their accounts.
             </p>
           </div>
 
           <div className="space-y-1">
-            <label className="font-semibold text-slate-700">Format</label>
+            <label className="font-semibold text-slate-700">Participation Format</label>
             <select
               value={participationType}
               onChange={(e) => setParticipationType(e.target.value as any)}
@@ -388,28 +408,19 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
           </div>
 
           <div className="space-y-1">
-            <label className="font-semibold text-slate-700">Min Team Size</label>
-            <input
-              type="number"
-              min={1}
-              value={minTeam}
-              onChange={(e) => setMinTeam(Number(e.target.value))}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500"
-            />
+            <label className="font-semibold text-slate-700">Publication Status</label>
+            <select
+              value={publicationStatus}
+              onChange={(e) => setPublicationStatus(e.target.value as any)}
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-semibold focus:ring-2 focus:ring-cyan-500 bg-slate-50"
+            >
+              <option value="DRAFT">Draft (Organizers Only)</option>
+              <option value="PUBLISHED">Published (Visible to All Students)</option>
+              <option value="ARCHIVED">Archived</option>
+            </select>
           </div>
 
-          <div className="space-y-1">
-            <label className="font-semibold text-slate-700">Max Team Size</label>
-            <input
-              type="number"
-              min={1}
-              value={maxTeam}
-              onChange={(e) => setMaxTeam(Number(e.target.value))}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500"
-            />
-          </div>
-
-          <div className="sm:col-span-3 space-y-1">
+          <div className="sm:col-span-2 space-y-1">
             <label className="font-semibold text-slate-700">Eligibility Criteria *</label>
             <textarea
               required
@@ -420,39 +431,127 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
               className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500"
             />
           </div>
-
-          <div className="sm:col-span-3 space-y-1">
-            <label className="font-semibold text-slate-700">Publication Status</label>
-            <select
-              value={publicationStatus}
-              onChange={(e) => setPublicationStatus(e.target.value as any)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-semibold focus:ring-2 focus:ring-cyan-500 bg-slate-50"
-            >
-              <option value="DRAFT">DRAFT (Hidden from Students)</option>
-              <option value="PUBLISHED">PUBLISHED (Visible in Student Directory)</option>
-              <option value="ARCHIVED">ARCHIVED</option>
-            </select>
-          </div>
         </div>
       </div>
 
-      {/* Bottom Save Bar */}
-      <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-        <button
-          type="button"
-          onClick={() => router.push("/admin/events")}
-          className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={loading}
-          className="flex items-center gap-2 px-6 py-2.5 text-xs font-semibold text-white bg-iitg-navy-900 hover:bg-cyan-700 rounded-lg shadow-md transition-colors"
-        >
-          <Save className="w-4 h-4" />
-          <span>{loading ? "Saving..." : isEdit ? "Update Event" : "Create & Save Event"}</span>
-        </button>
+      {/* Rules */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+          <h3 className="text-sm font-bold text-slate-900">Event Rules & Guidelines</h3>
+          <button
+            type="button"
+            onClick={() => setRules([...rules, ""])}
+            className="flex items-center gap-1 text-xs font-semibold text-cyan-700 hover:text-cyan-800"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Rule</span>
+          </button>
+        </div>
+
+        <div className="space-y-2 text-xs">
+          {rules.map((rule, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <span className="font-bold text-slate-400 w-5">{idx + 1}.</span>
+              <input
+                type="text"
+                value={rule}
+                onChange={(e) => {
+                  const copy = [...rules];
+                  copy[idx] = e.target.value;
+                  setRules(copy);
+                }}
+                className="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500"
+              />
+              <button
+                type="button"
+                onClick={() => setRules(rules.filter((_, i) => i !== idx))}
+                className="p-2 text-slate-400 hover:text-rose-600 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Coordinators */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+          <h3 className="text-sm font-bold text-slate-900">Student & Faculty Coordinators</h3>
+          <button
+            type="button"
+            onClick={() =>
+              setCoordinators([
+                ...coordinators,
+                { name: "", role: "Coordinator", email: "", phone: "" },
+              ])
+            }
+            className="flex items-center gap-1 text-xs font-semibold text-cyan-700 hover:text-cyan-800"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Coordinator</span>
+          </button>
+        </div>
+
+        <div className="space-y-3 text-xs">
+          {coordinators.map((c, idx) => (
+            <div key={idx} className="grid grid-cols-1 sm:grid-cols-4 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 relative">
+              <input
+                type="text"
+                placeholder="Name"
+                value={c.name}
+                onChange={(e) => {
+                  const copy = [...coordinators];
+                  copy[idx].name = e.target.value;
+                  setCoordinators(copy);
+                }}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white"
+              />
+              <input
+                type="text"
+                placeholder="Role (e.g. Lead Coordinator)"
+                value={c.role}
+                onChange={(e) => {
+                  const copy = [...coordinators];
+                  copy[idx].role = e.target.value;
+                  setCoordinators(copy);
+                }}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white"
+              />
+              <input
+                type="email"
+                placeholder="Email (@iitg.ac.in)"
+                value={c.email}
+                onChange={(e) => {
+                  const copy = [...coordinators];
+                  copy[idx].email = e.target.value;
+                  setCoordinators(copy);
+                }}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white"
+              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Phone"
+                  value={c.phone || ""}
+                  onChange={(e) => {
+                    const copy = [...coordinators];
+                    copy[idx].phone = e.target.value;
+                    setCoordinators(copy);
+                  }}
+                  className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => setCoordinators(coordinators.filter((_, i) => i !== idx))}
+                  className="p-1.5 text-slate-400 hover:text-rose-600"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </form>
   );
