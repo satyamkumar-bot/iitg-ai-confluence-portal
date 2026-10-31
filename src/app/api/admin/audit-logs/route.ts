@@ -1,0 +1,17 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth/session";
+import { dataStore } from "@/lib/db/store";
+
+export async function GET() {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== "ORGANIZER") {
+      return NextResponse.json({ success: false, error: "Organizer role required" }, { status: 403 });
+    }
+
+    const auditLogs = await dataStore.getAuditLogs();
+    return NextResponse.json({ success: true, auditLogs });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error?.message }, { status: 500 });
+  }
+}
