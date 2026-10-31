@@ -39,6 +39,12 @@ export function EventDetailsClient({
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "agenda" | "rules" | "prizes" | "faq">("overview");
 
+  const rules = Array.isArray(event.rules) ? event.rules : typeof event.rules === "string" && (event.rules as string).trim() ? [event.rules] : [];
+  const agenda = Array.isArray(event.agenda) ? event.agenda : [];
+  const prizes = Array.isArray(event.prizes) ? event.prizes : [];
+  const coordinators = Array.isArray(event.coordinator_information) ? event.coordinator_information : [];
+  const faq = Array.isArray(event.faq) ? event.faq : [];
+
   const now = new Date();
   const deadline = new Date(event.registration_close_at);
   const isPastDeadline = deadline <= now;
@@ -245,11 +251,11 @@ export function EventDetailsClient({
             {activeTab === "agenda" && (
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
                 <h3 className="text-base font-bold text-slate-900 mb-2">Event Schedule & Agenda</h3>
-                {event.agenda.length === 0 ? (
+                {agenda.length === 0 ? (
                   <p className="text-xs text-slate-500">Detailed agenda will be announced shortly.</p>
                 ) : (
                   <div className="space-y-4 relative before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-slate-200">
-                    {event.agenda.map((item, idx) => (
+                    {agenda.map((item, idx) => (
                       <div key={idx} className="relative flex items-start gap-4 text-xs">
                         <div className="w-7 h-7 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold text-[11px] shrink-0 z-10 border-2 border-white shadow-xs">
                           {idx + 1}
@@ -302,11 +308,11 @@ export function EventDetailsClient({
 
                 <div>
                   <h3 className="text-base font-bold text-slate-900 mb-2">Rules & Regulations</h3>
-                  {event.rules.length === 0 ? (
+                  {rules.length === 0 ? (
                     <p className="text-xs text-slate-500">Standard conference code of conduct applies.</p>
                   ) : (
                     <ul className="space-y-2 text-xs text-slate-700">
-                      {event.rules.map((rule, idx) => (
+                      {rules.map((rule, idx) => (
                         <li key={idx} className="flex items-start gap-2.5">
                           <CheckCircle2 className="w-4 h-4 text-cyan-600 shrink-0 mt-0.5" />
                           <span>{rule}</span>
@@ -321,13 +327,13 @@ export function EventDetailsClient({
             {activeTab === "prizes" && (
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
                 <h3 className="text-base font-bold text-slate-900 mb-2">Prizes & Awards</h3>
-                {event.prizes.length === 0 ? (
+                {prizes.length === 0 ? (
                   <p className="text-xs text-slate-500">
                     No competitive monetary prizes for this talk/panel. All participants will receive attendance certificates.
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {event.prizes.map((p, idx) => (
+                    {prizes.map((p, idx) => (
                       <div key={idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                         <div className="flex items-center gap-2">
                           <Award className="w-5 h-5 text-amber-500" />
@@ -347,7 +353,7 @@ export function EventDetailsClient({
                 <div>
                   <h3 className="text-base font-bold text-slate-900 mb-3">Event Coordinators</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {event.coordinator_information.map((coord, idx) => (
+                    {coordinators.map((coord, idx) => (
                       <div key={idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-full bg-cyan-100 text-cyan-800 font-bold flex items-center justify-center">
@@ -379,11 +385,11 @@ export function EventDetailsClient({
 
                 <div>
                   <h3 className="text-base font-bold text-slate-900 mb-3">Frequently Asked Questions</h3>
-                  {event.faq.length === 0 ? (
+                  {faq.length === 0 ? (
                     <p className="text-xs text-slate-500">No FAQs posted yet for this event.</p>
                   ) : (
                     <div className="space-y-3">
-                      {event.faq.map((item, idx) => (
+                      {faq.map((item, idx) => (
                         <div key={idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1 text-xs">
                           <div className="font-bold text-slate-900 flex items-start gap-2">
                             <HelpCircle className="w-4 h-4 text-cyan-600 shrink-0 mt-0.5" />

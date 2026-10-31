@@ -189,13 +189,17 @@ class DataStore {
   // ============================================================================
   async getEvents(options?: {
     onlyPublished?: boolean;
+    includeArchived?: boolean;
     category?: string;
     search?: string;
     statusFilter?: string;
   }): Promise<EventItem[]> {
     if (isSupabaseConfigured && supabasePublic) {
       try {
-        let query = supabasePublic.from("events").select("*").is("archived_at", null);
+        let query = supabasePublic.from("events").select("*");
+        if (!options?.includeArchived) {
+          query = query.is("archived_at", null);
+        }
         if (options?.onlyPublished) {
           query = query.eq("publication_status", "PUBLISHED");
         }
@@ -226,6 +230,8 @@ class DataStore {
               });
             } else if (options.statusFilter === "Closed") {
               list = list.filter((e) => new Date(e.registration_close_at) <= now);
+            } else if (options.statusFilter === "ARCHIVED") {
+              list = list.filter((e) => Boolean(e.archived_at) || e.publication_status === "ARCHIVED");
             }
           }
           return list.sort(
@@ -239,7 +245,10 @@ class DataStore {
       }
     }
 
-    let list = [...this.events].filter((e) => !e.archived_at);
+    let list = [...this.events];
+    if (!options?.includeArchived) {
+      list = list.filter((e) => !e.archived_at);
+    }
 
     if (options?.onlyPublished) {
       list = list.filter((e) => e.publication_status === "PUBLISHED");
@@ -440,6 +449,36 @@ class DataStore {
       entity_type: "EVENT",
       entity_id: id,
       sanitized_metadata: { title: this.events[index].title },
+    });
+
+    return true;
+  }
+
+  async unarchiveEvent(id: string, actorId?: string): Promise<boolean> {
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        await supabasePublic.from("events").update({
+          archived_at: null,
+          publication_status: "PUBLISHED",
+          updated_at: new Date().toISOString(),
+        }).eq("id", id);
+      } catch (err) {
+        console.error("Supabase unarchiveEvent error:", err);
+      }
+    }
+
+    const index = this.events.findIndex((e) => e.id === id);
+    if (index >= 0) {
+      this.events[index].archived_at = null;
+      this.events[index].publication_status = "PUBLISHED";
+      this.events[index].updated_at = new Date().toISOString();
+    }
+
+    await this.addAuditLog({
+      actor_user_id: actorId ?? null,
+      action: "EVENT_RESTORED",
+      entity_type: "EVENT",
+      entity_id: id,
     });
 
     return true;

@@ -102,6 +102,7 @@ export const eventSchema = z.object({
     .or(z.literal(""))
     .nullable(),
   publication_status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).default("DRAFT"),
+  archived_at: z.string().datetime().nullable().optional(),
 });
 
 export type EventInput = z.infer<typeof eventSchema>;

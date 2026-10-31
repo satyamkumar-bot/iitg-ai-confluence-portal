@@ -3,6 +3,8 @@ import { eventSchema } from "@/lib/validation/schemas";
 import { dataStore } from "@/lib/db/store";
 import { getCurrentUser } from "@/lib/auth/session";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser();
@@ -17,12 +19,20 @@ export async function GET(req: NextRequest) {
 
     const events = await dataStore.getEvents({
       onlyPublished: false,
+      includeArchived: true,
       category,
       search,
       statusFilter,
     });
 
-    return NextResponse.json({ success: true, events });
+    return NextResponse.json(
+      { success: true, events },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      }
+    );
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error?.message }, { status: 500 });
   }

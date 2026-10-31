@@ -14,8 +14,11 @@ import { formatDate } from "@/lib/utils";
 import { DemoDataNotice } from "@/components/common/DemoDataNotice";
 import { AdminEventsTableClient } from "./AdminEventsTableClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AdminEventsPage() {
-  const events = await dataStore.getEvents({ onlyPublished: false });
+  const events = await dataStore.getEvents({ onlyPublished: false, includeArchived: true });
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
