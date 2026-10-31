@@ -2,7 +2,7 @@ import { User, EventItem, Registration, Announcement, IntegrationLog, AuditLog }
 
 export const SEED_USERS: User[] = [
   {
-    id: "usr-satyam-001",
+    id: "d173907d-9fd9-42e1-9f28-392b3f3bef61",
     microsoft_tenant_id: "iitg-tenant-id",
     microsoft_object_id: "aad-satyam-001",
     email: "k.satyam@op.iitg.ac.in",
@@ -14,7 +14,7 @@ export const SEED_USERS: User[] = [
     updated_at: "2026-10-01T09:00:00Z",
   },
   {
-    id: "usr-vanshi-002",
+    id: "a5d8b355-36c2-4e34-a6b2-ebe58b737d0c",
     microsoft_tenant_id: "iitg-tenant-id",
     microsoft_object_id: "aad-vanshi-002",
     email: "s.vanshi@op.iitg.ac.in",
@@ -26,7 +26,7 @@ export const SEED_USERS: User[] = [
     updated_at: "2026-10-01T09:00:00Z",
   },
   {
-    id: "usr-amarjeet-003",
+    id: "34dc2998-34bc-4aa3-9fe0-f0ea23a98f06",
     microsoft_tenant_id: "iitg-tenant-id",
     microsoft_object_id: "aad-amarjeet-003",
     email: "amarjeet.kumar@op.iitg.ac.in",

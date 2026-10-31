@@ -18,6 +18,18 @@ import {
   SEED_AUDIT_LOGS,
 } from "./seed-data";
 import { generateRegistrationReference } from "../utils";
+import { supabasePublic, isSupabaseConfigured } from "./supabase";
+
+function generateUUID(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 // Global in-memory storage holding initial seed records (persists across API requests during server lifetime)
 class DataStore {
@@ -49,16 +61,48 @@ class DataStore {
   // USERS
   // ============================================================================
   async getUsers(): Promise<User[]> {
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        const { data, error } = await supabasePublic.from("users").select("*");
+        if (!error && data && data.length > 0) return data as User[];
+      } catch (err) {
+        console.error("Supabase getUsers error:", err);
+      }
+    }
     return [...this.users];
   }
 
   async getUserById(id: string): Promise<User | null> {
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        const { data, error } = await supabasePublic
+          .from("users")
+          .select("*")
+          .eq("id", id)
+          .maybeSingle();
+        if (!error && data) return data as User;
+      } catch (err) {
+        console.error("Supabase getUserById error:", err);
+      }
+    }
     const user = this.users.find((u) => u.id === id);
     return user ? { ...user } : null;
   }
 
   async getUserByEmail(email: string): Promise<User | null> {
     const normalized = email.trim().toLowerCase();
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        const { data, error } = await supabasePublic
+          .from("users")
+          .select("*")
+          .ilike("email", normalized)
+          .maybeSingle();
+        if (!error && data) return data as User;
+      } catch (err) {
+        console.error("Supabase getUserByEmail error:", err);
+      }
+    }
     const user = this.users.find((u) => u.email.toLowerCase() === normalized);
     return user ? { ...user } : null;
   }
@@ -86,10 +130,26 @@ class DataStore {
         updated_at: new Date().toISOString(),
       };
       this.users[index] = updated;
+
+      if (isSupabaseConfigured && supabasePublic) {
+        try {
+          await supabasePublic.from("users").update({
+            display_name: updated.display_name,
+            role: updated.role,
+            department: updated.department,
+            roll_number: updated.roll_number,
+            updated_at: updated.updated_at,
+          }).eq("id", updated.id);
+        } catch (err) {
+          console.error("Supabase upsertUser update error:", err);
+        }
+      }
+
       return { ...updated };
     } else {
+      const newId = generateUUID();
       const newUser: User = {
-        id: `usr-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        id: newId,
         microsoft_tenant_id: userData.microsoft_tenant_id ?? null,
         microsoft_object_id: userData.microsoft_object_id ?? null,
         email: normalizedEmail,
@@ -102,6 +162,24 @@ class DataStore {
         updated_at: new Date().toISOString(),
       };
       this.users.push(newUser);
+
+      if (isSupabaseConfigured && supabasePublic) {
+        try {
+          await supabasePublic.from("users").upsert({
+            id: newUser.id,
+            email: newUser.email,
+            display_name: newUser.display_name,
+            role: newUser.role,
+            department: newUser.department,
+            roll_number: newUser.roll_number,
+            created_at: newUser.created_at,
+            updated_at: newUser.updated_at,
+          });
+        } catch (err) {
+          console.error("Supabase upsertUser insert error:", err);
+        }
+      }
+
       return { ...newUser };
     }
   }
@@ -115,6 +193,52 @@ class DataStore {
     search?: string;
     statusFilter?: string;
   }): Promise<EventItem[]> {
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        let query = supabasePublic.from("events").select("*").is("archived_at", null);
+        if (options?.onlyPublished) {
+          query = query.eq("publication_status", "PUBLISHED");
+        }
+        if (options?.category && options.category !== "All") {
+          query = query.ilike("category", options.category);
+        }
+        const { data, error } = await query;
+        if (!error && data) {
+          let list = data as EventItem[];
+          if (options?.search) {
+            const q = options.search.toLowerCase();
+            list = list.filter(
+              (e) =>
+                e.title.toLowerCase().includes(q) ||
+                (e.short_description && e.short_description.toLowerCase().includes(q)) ||
+                (e.venue && e.venue.toLowerCase().includes(q))
+            );
+          }
+          if (options?.statusFilter && options.statusFilter !== "All") {
+            const now = new Date();
+            if (options.statusFilter === "Open") {
+              list = list.filter((e) => new Date(e.registration_close_at) > now);
+            } else if (options.statusFilter === "Closing Soon") {
+              const threeDays = 3 * 24 * 60 * 60 * 1000;
+              list = list.filter((e) => {
+                const diff = new Date(e.registration_close_at).getTime() - now.getTime();
+                return diff > 0 && diff <= threeDays;
+              });
+            } else if (options.statusFilter === "Closed") {
+              list = list.filter((e) => new Date(e.registration_close_at) <= now);
+            }
+          }
+          return list.sort(
+            (a, b) =>
+              new Date(b.created_at || b.registration_open_at).getTime() -
+              new Date(a.created_at || a.registration_open_at).getTime()
+          );
+        }
+      } catch (err) {
+        console.error("Supabase getEvents fallback to memory:", err);
+      }
+    }
+
     let list = [...this.events].filter((e) => !e.archived_at);
 
     if (options?.onlyPublished) {
@@ -158,24 +282,96 @@ class DataStore {
   }
 
   async getEventById(id: string): Promise<EventItem | null> {
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        const { data, error } = await supabasePublic
+          .from("events")
+          .select("*")
+          .eq("id", id)
+          .maybeSingle();
+        if (!error && data) return data as EventItem;
+      } catch (err) {
+        console.error("Supabase getEventById error:", err);
+      }
+    }
+
     const event = this.events.find((e) => e.id === id);
     return event ? { ...event } : null;
   }
 
   async getEventBySlug(slug: string): Promise<EventItem | null> {
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        const { data, error } = await supabasePublic
+          .from("events")
+          .select("*")
+          .eq("slug", slug)
+          .is("archived_at", null)
+          .maybeSingle();
+        if (!error && data) return data as EventItem;
+      } catch (err) {
+        console.error("Supabase getEventBySlug error:", err);
+      }
+    }
+
     const event = this.events.find((e) => e.slug === slug);
     return event ? { ...event } : null;
   }
 
   async createEvent(data: Omit<EventItem, "id" | "created_at" | "updated_at">, actorId?: string): Promise<EventItem> {
+    const newId = (data as any).id || generateUUID();
+    const nowIso = new Date().toISOString();
     const newEvent: EventItem = {
       ...data,
-      id: `evt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      id: newId,
+      event_start_at: data.event_start_at || data.registration_open_at || nowIso,
+      event_end_at: data.event_end_at || data.registration_close_at || nowIso,
+      created_at: nowIso,
+      updated_at: nowIso,
       is_demo: false,
     };
     this.events.unshift(newEvent);
+
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        await supabasePublic.from("events").insert({
+          id: newEvent.id,
+          slug: newEvent.slug,
+          title: newEvent.title,
+          short_description: newEvent.short_description,
+          full_description: newEvent.full_description,
+          category: newEvent.category,
+          banner_url: newEvent.banner_url || null,
+          event_start_at: newEvent.event_start_at,
+          event_end_at: newEvent.event_end_at,
+          timezone: newEvent.timezone || "Asia/Kolkata",
+          venue: newEvent.venue,
+          participation_mode: newEvent.participation_mode,
+          registration_open_at: newEvent.registration_open_at,
+          registration_close_at: newEvent.registration_close_at,
+          eligibility: newEvent.eligibility,
+          participation_type: newEvent.participation_type,
+          minimum_team_size: newEvent.minimum_team_size || 1,
+          maximum_team_size: newEvent.maximum_team_size || 1,
+          rules: newEvent.rules || [],
+          agenda: newEvent.agenda || [],
+          prerequisites: newEvent.prerequisites || null,
+          selection_criteria: newEvent.selection_criteria || null,
+          prizes: newEvent.prizes || [],
+          certificate_information: newEvent.certificate_information || null,
+          coordinator_information: newEvent.coordinator_information || [],
+          faq: newEvent.faq || [],
+          microsoft_forms_url: newEvent.microsoft_forms_url || null,
+          form_integration_type: (data as any).form_integration_type || "POWER_AUTOMATE_WEBHOOK",
+          form_mapping: (data as any).form_mapping || {},
+          publication_status: newEvent.publication_status || "PUBLISHED",
+          created_at: newEvent.created_at,
+          updated_at: newEvent.updated_at,
+        });
+      } catch (err) {
+        console.error("Supabase createEvent error:", err);
+      }
+    }
 
     await this.addAuditLog({
       actor_user_id: actorId ?? null,
@@ -189,6 +385,14 @@ class DataStore {
   }
 
   async updateEvent(id: string, data: Partial<EventItem>, actorId?: string): Promise<EventItem | null> {
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        await supabasePublic.from("events").update({ ...data, updated_at: new Date().toISOString() }).eq("id", id);
+      } catch (err) {
+        console.error("Supabase updateEvent error:", err);
+      }
+    }
+
     const index = this.events.findIndex((e) => e.id === id);
     if (index === -1) return null;
 
@@ -211,6 +415,18 @@ class DataStore {
   }
 
   async archiveEvent(id: string, actorId?: string): Promise<boolean> {
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        await supabasePublic.from("events").update({
+          archived_at: new Date().toISOString(),
+          publication_status: "ARCHIVED",
+          updated_at: new Date().toISOString(),
+        }).eq("id", id);
+      } catch (err) {
+        console.error("Supabase archiveEvent error:", err);
+      }
+    }
+
     const index = this.events.findIndex((e) => e.id === id);
     if (index === -1) return false;
 
@@ -241,6 +457,55 @@ class DataStore {
     search?: string;
     reviewRequiredOnly?: boolean;
   }): Promise<Registration[]> {
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        let query = supabasePublic.from("registrations").select("*, events(title, slug)");
+        if (options?.studentUserId) {
+          query = query.eq("student_user_id", options.studentUserId);
+        }
+        if (options?.studentEmail) {
+          query = query.ilike("respondent_email", options.studentEmail.trim());
+        }
+        if (options?.eventId && options.eventId !== "ALL") {
+          query = query.eq("event_id", options.eventId);
+        }
+        if (options?.status && options.status !== "ALL") {
+          query = query.eq("registration_status", options.status);
+        }
+        if (options?.syncStatus && options.syncStatus !== "ALL") {
+          query = query.eq("sync_status", options.syncStatus);
+        }
+        if (options?.reviewRequiredOnly) {
+          query = query.eq("review_required", true);
+        }
+        const { data, error } = await query;
+        if (!error && data) {
+          let list = data.map((r: any) => ({
+            ...r,
+            event_title: r.events?.title || r.event_title,
+            event_slug: r.events?.slug || r.event_slug,
+          })) as Registration[];
+
+          if (options?.search) {
+            const q = options.search.toLowerCase();
+            list = list.filter(
+              (r) =>
+                (r.reference_number && r.reference_number.toLowerCase().includes(q)) ||
+                (r.respondent_email && r.respondent_email.toLowerCase().includes(q)) ||
+                (r.student_name && r.student_name.toLowerCase().includes(q)) ||
+                (r.event_title && r.event_title.toLowerCase().includes(q))
+            );
+          }
+
+          return list.sort(
+            (a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime()
+          );
+        }
+      } catch (err) {
+        console.error("Supabase getRegistrations fallback to memory:", err);
+      }
+    }
+
     let list = [...this.registrations];
 
     if (options?.studentUserId || options?.studentEmail) {
@@ -285,6 +550,25 @@ class DataStore {
   }
 
   async getRegistrationById(id: string): Promise<Registration | null> {
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        const { data, error } = await supabasePublic
+          .from("registrations")
+          .select("*, events(title, slug)")
+          .eq("id", id)
+          .maybeSingle();
+        if (!error && data) {
+          return {
+            ...data,
+            event_title: (data as any).events?.title || (data as any).event_title,
+            event_slug: (data as any).events?.slug || (data as any).event_slug,
+          } as Registration;
+        }
+      } catch (err) {
+        console.error("Supabase getRegistrationById error:", err);
+      }
+    }
+
     const reg = this.registrations.find((r) => r.id === id);
     return reg ? { ...reg } : null;
   }
@@ -305,6 +589,46 @@ class DataStore {
     const normalizedEmail = payload.respondentEmail.trim().toLowerCase();
 
     // 1. Check duplicate via unique source_response_id OR (event_id, respondent_email)
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        const { data: existingRegs } = await supabasePublic
+          .from("registrations")
+          .select("*, events(title, slug)")
+          .eq("event_id", payload.eventId)
+          .or(`source_response_id.eq.${payload.sourceResponseId},respondent_email.ilike.${normalizedEmail}`);
+
+        if (existingRegs && existingRegs.length > 0) {
+          const existing = {
+            ...existingRegs[0],
+            event_title: (existingRegs[0] as any).events?.title || event.title,
+            event_slug: (existingRegs[0] as any).events?.slug || event.slug,
+          } as Registration;
+
+          await this.addIntegrationLog({
+            integration_type: "MICROSOFT_FORMS",
+            event_id: event.id,
+            event_title: event.title,
+            source_reference: payload.sourceResponseId,
+            operation: "INGEST_FORM_RESPONSE",
+            outcome: "DUPLICATE_SKIPPED",
+            metadata: {
+              message: "Student already registered for this event. Returned existing registration record.",
+              referenceNumber: existing.reference_number,
+              respondentEmail: payload.respondentEmail,
+            },
+          });
+
+          return {
+            registration: existing,
+            isDuplicate: true,
+            unresolvedStudent: false,
+          };
+        }
+      } catch (err) {
+        console.error("Supabase check existing registration error:", err);
+      }
+    }
+
     const existingIndex = this.registrations.findIndex(
       (r) =>
         r.event_id === payload.eventId &&
@@ -353,7 +677,7 @@ class DataStore {
     const isUnresolved = !matchedUser;
 
     const newRegistration: Registration = {
-      id: `reg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: generateUUID(),
       reference_number: generateRegistrationReference(event.slug),
       event_id: event.id,
       event_title: event.title,
@@ -367,7 +691,7 @@ class DataStore {
       response_data: payload.answers,
       team_data: payload.teamInfo ?? null,
       response_received_status: "RECEIVED",
-      // Direct registration confirmation for institutional students
+      // Direct registration confirmation for verified students, review only for external/unmatched
       registration_status: isUnresolved ? "AWAITING_REVIEW" : "CONFIRMED",
       sync_status: isUnresolved ? "UNRESOLVED_STUDENT" : "SUCCESS",
       review_required: isUnresolved,
@@ -380,6 +704,32 @@ class DataStore {
     };
 
     this.registrations.unshift(newRegistration);
+
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        await supabasePublic.from("registrations").insert({
+          id: newRegistration.id,
+          reference_number: newRegistration.reference_number,
+          event_id: newRegistration.event_id,
+          student_user_id: newRegistration.student_user_id,
+          respondent_email: newRegistration.respondent_email,
+          source_response_id: newRegistration.source_response_id,
+          submitted_at: newRegistration.submitted_at,
+          synchronized_at: newRegistration.synchronized_at,
+          response_data: newRegistration.response_data,
+          team_data: newRegistration.team_data,
+          response_received_status: newRegistration.response_received_status,
+          registration_status: newRegistration.registration_status,
+          sync_status: newRegistration.sync_status,
+          review_required: newRegistration.review_required,
+          review_notes: newRegistration.review_notes,
+          created_at: newRegistration.created_at,
+          updated_at: newRegistration.updated_at,
+        });
+      } catch (err) {
+        console.error("Supabase insert registration error:", err);
+      }
+    }
 
     // Record Integration Log
     await this.addIntegrationLog({
@@ -409,6 +759,21 @@ class DataStore {
     reviewNotes?: string,
     actorId?: string
   ): Promise<Registration | null> {
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        await supabasePublic
+          .from("registrations")
+          .update({
+            registration_status: newStatus,
+            review_notes: reviewNotes,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id);
+      } catch (err) {
+        console.error("Supabase updateRegistrationStatus error:", err);
+      }
+    }
+
     const index = this.registrations.findIndex((r) => r.id === id);
     if (index === -1) return null;
 
@@ -563,28 +928,32 @@ class DataStore {
   // METRICS & ANALYTICS
   // ============================================================================
   async getAdminMetrics() {
-    const totalEvents = this.events.filter((e) => !e.archived_at).length;
-    const publishedEvents = this.events.filter((e) => e.publication_status === "PUBLISHED" && !e.archived_at).length;
-    const draftEvents = this.events.filter((e) => e.publication_status === "DRAFT" && !e.archived_at).length;
+    const events = await this.getEvents();
+    const registrations = await this.getRegistrations();
+    const integrationLogs = await this.getIntegrationLogs();
+
+    const totalEvents = events.filter((e) => !e.archived_at).length;
+    const publishedEvents = events.filter((e) => e.publication_status === "PUBLISHED" && !e.archived_at).length;
+    const draftEvents = events.filter((e) => e.publication_status === "DRAFT" && !e.archived_at).length;
 
     const now = new Date();
-    const openRegistrations = this.events.filter(
+    const openRegistrations = events.filter(
       (e) => e.publication_status === "PUBLISHED" && new Date(e.registration_close_at) > now
     ).length;
     const closedRegistrations = publishedEvents - openRegistrations;
 
-    const totalResponses = this.registrations.length;
-    const matchedRegistrations = this.registrations.filter((r) => r.student_user_id !== null).length;
-    const confirmedRegistrations = this.registrations.filter((r) => r.registration_status === "CONFIRMED").length;
-    const awaitingReview = this.registrations.filter((r) => r.registration_status === "AWAITING_REVIEW").length;
-    const unmatchedResponses = this.registrations.filter((r) => r.review_required || r.student_user_id === null).length;
-    const syncFailures = this.integrationLogs.filter((l) => l.outcome === "FAILED").length;
+    const totalResponses = registrations.length;
+    const matchedRegistrations = registrations.filter((r) => r.student_user_id !== null).length;
+    const confirmedRegistrations = registrations.filter((r) => r.registration_status === "CONFIRMED").length;
+    const awaitingReview = registrations.filter((r) => r.registration_status === "AWAITING_REVIEW").length;
+    const unmatchedResponses = registrations.filter((r) => r.review_required || r.student_user_id === null).length;
+    const syncFailures = integrationLogs.filter((l) => l.outcome === "FAILED").length;
 
     // Registrations per event
-    const eventStats = this.events
+    const eventStats = events
       .filter((e) => !e.archived_at)
       .map((e) => {
-        const regs = this.registrations.filter((r) => r.event_id === e.id);
+        const regs = registrations.filter((r) => r.event_id === e.id);
         return {
           id: e.id,
           title: e.title.length > 28 ? e.title.slice(0, 25) + "..." : e.title,
@@ -598,8 +967,8 @@ class DataStore {
     const statusBreakdown = [
       { name: "Confirmed", count: confirmedRegistrations, color: "#10B981" },
       { name: "Awaiting Review", count: awaitingReview, color: "#F59E0B" },
-      { name: "Waitlisted", count: this.registrations.filter((r) => r.registration_status === "WAITLISTED").length, color: "#06B6D4" },
-      { name: "Rejected", count: this.registrations.filter((r) => r.registration_status === "REJECTED").length, color: "#F43F5E" },
+      { name: "Waitlisted", count: registrations.filter((r) => r.registration_status === "WAITLISTED").length, color: "#06B6D4" },
+      { name: "Rejected", count: registrations.filter((r) => r.registration_status === "REJECTED").length, color: "#F43F5E" },
     ];
 
     return {
@@ -619,9 +988,12 @@ class DataStore {
     };
   }
 
-  async getStudentMetrics(studentUserId: string) {
-    const studentRegistrations = this.registrations.filter((r) => r.student_user_id === studentUserId);
-    const publishedEvents = this.events.filter((e) => e.publication_status === "PUBLISHED" && !e.archived_at);
+  async getStudentMetrics(studentUserId: string, studentEmail?: string) {
+    const studentRegistrations = await this.getRegistrations({
+      studentUserId,
+      studentEmail,
+    });
+    const publishedEvents = await this.getEvents({ onlyPublished: true });
 
     const now = new Date();
     const approachingDeadlines = publishedEvents.filter((e) => {

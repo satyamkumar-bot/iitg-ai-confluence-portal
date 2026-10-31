@@ -54,7 +54,7 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
   const [selectionCriteria, setSelectionCriteria] = useState(initialEvent?.selection_criteria || "");
   const [certificateInfo, setCertificateInfo] = useState(initialEvent?.certificate_information || "Certificate of Participation.");
   const [msFormsUrl, setMsFormsUrl] = useState(initialEvent?.microsoft_forms_url || "");
-  const [publicationStatus, setPublicationStatus] = useState<any>(initialEvent?.publication_status || "DRAFT");
+  const [publicationStatus, setPublicationStatus] = useState<any>(initialEvent?.publication_status || "PUBLISHED");
 
   // Dynamic lists
   const [rules, setRules] = useState<string[]>(initialEvent?.rules || ["All submissions must adhere to academic integrity guidelines."]);
