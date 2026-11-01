@@ -51,7 +51,10 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo / Branding */}
-          <Link href="/" className="flex items-center gap-3 group">
+          <Link
+            href={session ? (isOrganizer ? "/admin" : "/events") : "/auth/signin"}
+            className="flex items-center gap-3 group"
+          >
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-iitg-cyan-500 to-iitg-navy-700 flex items-center justify-center text-white shadow-inner border border-iitg-cyan-400/30 group-hover:scale-105 transition-transform">
               <Sparkles className="w-5 h-5 text-cyan-200" />
             </div>
@@ -105,7 +108,7 @@ export function Navbar() {
                   {session.user.name?.charAt(0) || "U"}
                 </div>
                 <button
-                  onClick={() => signOut({ callbackUrl: "/" })}
+                  onClick={() => signOut({ callbackUrl: "/auth/signin" })}
                   title="Sign out"
                   className="p-1.5 text-slate-400 hover:text-white hover:bg-iitg-navy-800 rounded-md transition-colors"
                 >

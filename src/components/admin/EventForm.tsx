@@ -52,14 +52,14 @@ export function EventForm({ initialEvent, isEdit = false }: EventFormProps) {
   const [participationType, setParticipationType] = useState<any>(initialEvent?.participation_type || "INDIVIDUAL");
   const [prerequisites, setPrerequisites] = useState(initialEvent?.prerequisites || "");
   const [selectionCriteria, setSelectionCriteria] = useState(initialEvent?.selection_criteria || "");
-  const [certificateInfo, setCertificateInfo] = useState(initialEvent?.certificate_information || "Certificate of Participation.");
+  const [certificateInfo, setCertificateInfo] = useState(initialEvent?.certificate_information || "");
   const [msFormsUrl, setMsFormsUrl] = useState(initialEvent?.microsoft_forms_url || "");
   const [publicationStatus, setPublicationStatus] = useState<any>(initialEvent?.publication_status || "PUBLISHED");
 
   // Dynamic lists
   const [rules, setRules] = useState<string[]>(initialEvent?.rules || ["All submissions must adhere to academic integrity guidelines."]);
-  const [agenda, setAgenda] = useState(initialEvent?.agenda || [{ time: "09:00 AM", title: "Inauguration" }]);
-  const [prizes, setPrizes] = useState(initialEvent?.prizes || [{ position: "1st Place", prize: "INR 50,000" }]);
+  const [agenda, setAgenda] = useState(initialEvent?.agenda || []);
+  const [prizes, setPrizes] = useState(initialEvent?.prizes || []);
   const [coordinators, setCoordinators] = useState(
     initialEvent?.coordinator_information || [{ name: "Satyam Kumar", role: "Lead Organizer", email: "k.satyam@op.iitg.ac.in", phone: "+91-9876543210" }]
   );

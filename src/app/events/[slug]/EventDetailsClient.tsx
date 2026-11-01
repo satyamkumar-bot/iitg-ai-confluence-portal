@@ -37,7 +37,7 @@ export function EventDetailsClient({
   currentUser?: any;
 }) {
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "agenda" | "rules" | "prizes" | "faq">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "rules" | "faq">("overview");
 
   const rules = Array.isArray(event.rules) ? event.rules : typeof event.rules === "string" && (event.rules as string).trim() ? [event.rules] : [];
   const agenda = Array.isArray(event.agenda) ? event.agenda : [];
@@ -202,9 +202,7 @@ export function EventDetailsClient({
         <div className="flex border-b border-slate-200 gap-2 overflow-x-auto text-xs font-semibold">
           {[
             { id: "overview", label: "Overview & Objectives" },
-            { id: "agenda", label: "Schedule & Agenda" },
             { id: "rules", label: "Eligibility & Rules" },
-            { id: "prizes", label: "Prizes & Recognition" },
             { id: "faq", label: "Coordinators & FAQs" },
           ].map((tab) => (
             <button
@@ -233,49 +231,6 @@ export function EventDetailsClient({
                     {event.full_description}
                   </div>
                 </div>
-
-                {event.certificate_information && (
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                      <Award className="w-4 h-4 text-cyan-600" />
-                      Certificate & Recognition
-                    </h4>
-                    <p className="text-xs text-slate-600 leading-relaxed">
-                      {event.certificate_information}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === "agenda" && (
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <h3 className="text-base font-bold text-slate-900 mb-2">Event Schedule & Agenda</h3>
-                {agenda.length === 0 ? (
-                  <p className="text-xs text-slate-500">Detailed agenda will be announced shortly.</p>
-                ) : (
-                  <div className="space-y-4 relative before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-slate-200">
-                    {agenda.map((item, idx) => (
-                      <div key={idx} className="relative flex items-start gap-4 text-xs">
-                        <div className="w-7 h-7 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold text-[11px] shrink-0 z-10 border-2 border-white shadow-xs">
-                          {idx + 1}
-                        </div>
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex-1 space-y-1">
-                          <div className="text-[11px] font-bold text-cyan-700 uppercase">
-                            {item.time}
-                          </div>
-                          <div className="font-bold text-slate-900 text-sm">{item.title}</div>
-                          {item.speaker && (
-                            <div className="text-slate-600 text-xs">Speaker: {item.speaker}</div>
-                          )}
-                          {item.description && (
-                            <div className="text-slate-500 text-xs mt-1">{item.description}</div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 
@@ -321,30 +276,6 @@ export function EventDetailsClient({
                     </ul>
                   )}
                 </div>
-              </div>
-            )}
-
-            {activeTab === "prizes" && (
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <h3 className="text-base font-bold text-slate-900 mb-2">Prizes & Awards</h3>
-                {prizes.length === 0 ? (
-                  <p className="text-xs text-slate-500">
-                    No competitive monetary prizes for this talk/panel. All participants will receive attendance certificates.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {prizes.map((p, idx) => (
-                      <div key={idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Award className="w-5 h-5 text-amber-500" />
-                          <span className="font-bold text-sm text-slate-900">{p.position}</span>
-                        </div>
-                        <div className="text-base font-extrabold text-cyan-700">{p.prize}</div>
-                        {p.description && <p className="text-xs text-slate-500">{p.description}</p>}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 

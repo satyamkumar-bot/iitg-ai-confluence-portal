@@ -5,8 +5,6 @@ import { redirect } from "next/navigation";
 import {
   Calendar,
   ClipboardList,
-  Clock,
-  CheckCircle,
   AlertTriangle,
   ArrowRight,
   ExternalLink,
@@ -45,8 +43,7 @@ export default async function DashboardPage() {
               Welcome back, {user.name}!
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 font-normal">
-              {user.email} &bull; {user.department || "Mehta Family School of Data Science & AI"}
-              {user.roll_number && ` &bull; Roll: ${user.roll_number}`}
+              {user.email}
             </p>
           </div>
 
@@ -72,7 +69,7 @@ export default async function DashboardPage() {
       <DemoDataNotice />
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -101,38 +98,8 @@ export default async function DashboardPage() {
             {studentMetrics.totalRegistrations}
           </div>
           <div className="text-[11px] text-slate-500 mt-1">
-            {studentMetrics.confirmedCount} confirmed &bull; {studentMetrics.awaitingReviewCount} awaiting review
+            Active registrations
           </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Confirmed Participation
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <CheckCircle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-emerald-600 mt-2">
-            {studentMetrics.confirmedCount}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1">Organizer approved</div>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Deadlines Soon
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-amber-600 mt-2">
-            {studentMetrics.approachingDeadlines}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1">Closing within 4 days</div>
         </div>
       </div>
 
@@ -213,7 +180,7 @@ export default async function DashboardPage() {
           <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-start gap-2">
             <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
             <div className="leading-relaxed">
-              <strong>Synchronization Note:</strong> When you complete an event registration in Microsoft Forms, our secure backend receives the response through Power Automate. Status changes to <em>Confirmed</em> or <em>Waitlisted</em> are updated by the event coordinators after review.
+              <strong>Synchronization Note:</strong> When you complete an event registration in Microsoft Forms, our secure backend directly synchronizes and confirms your registration in your student dashboard.
             </div>
           </div>
         </div>
