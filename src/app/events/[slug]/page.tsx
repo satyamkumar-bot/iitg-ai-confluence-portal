@@ -3,6 +3,9 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { notFound } from "next/navigation";
 import { EventDetailsClient } from "./EventDetailsClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function EventDetailsPage({
   params,
 }: {

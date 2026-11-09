@@ -3,6 +3,9 @@ import { dataStore } from "@/lib/db/store";
 import { redirect } from "next/navigation";
 import { MyRegistrationsClient } from "./MyRegistrationsClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function MyRegistrationsPage() {
   const user = await getCurrentUser();
   if (!user) {

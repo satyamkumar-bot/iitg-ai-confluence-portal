@@ -16,6 +16,9 @@ import { DashboardCharts } from "@/components/charts/DashboardCharts";
 import { formatDate, formatDateTime, getRegistrationStatusBadge } from "@/lib/utils";
 import { DemoDataNotice } from "@/components/common/DemoDataNotice";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AdminDashboardPage() {
   const metrics = await dataStore.getAdminMetrics();
   const recentRegistrations = (await dataStore.getRegistrations()).slice(0, 5);

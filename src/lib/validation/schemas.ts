@@ -5,7 +5,11 @@ import { z } from "zod";
 // ==============================================================================
 export const microsoftFormsWebhookSchema = z.object({
   eventId: z.string().min(1, "Event ID is required").transform((val) => val.trim()),
-  formId: z.string().optional().nullable(),
+  formId: z
+    .string()
+    .optional()
+    .nullable()
+    .transform((val) => val ?? undefined),
   sourceResponseId: z
     .union([z.string(), z.number()])
     .transform((val) => String(val).trim()),
@@ -27,7 +31,20 @@ export const microsoftFormsWebhookSchema = z.object({
       return isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
     }),
   answers: z.record(z.any()).optional().default({}),
-  teamInfo: z.any().optional(),
+  teamInfo: z
+    .object({
+      teamName: z.string().optional(),
+      members: z
+        .array(
+          z.object({
+            name: z.string(),
+            email: z.string(),
+            rollNumber: z.string().optional(),
+          })
+        )
+        .optional(),
+    })
+    .optional(),
 });
 
 export type MicrosoftFormsWebhookInput = z.infer<typeof microsoftFormsWebhookSchema>;

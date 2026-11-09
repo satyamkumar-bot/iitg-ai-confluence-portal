@@ -14,6 +14,9 @@ import {
 import { formatDate, getRegistrationStatusBadge, getSyncStatusBadge } from "@/lib/utils";
 import { DemoDataNotice } from "@/components/common/DemoDataNotice";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) {
