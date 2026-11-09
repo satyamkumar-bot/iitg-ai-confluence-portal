@@ -4,27 +4,30 @@ import { z } from "zod";
 // MICROSOFT FORMS / POWER AUTOMATE WEBHOOK PAYLOAD SCHEMA
 // ==============================================================================
 export const microsoftFormsWebhookSchema = z.object({
-  eventId: z.string().min(1, "Event ID is required"),
-  formId: z.string().optional(),
-  sourceResponseId: z.string().min(1, "Source response ID is required for idempotency"),
-  respondentEmail: z.string().email("Valid respondent email is required"),
-  respondentName: z.string().optional(),
-  submittedAt: z.string().datetime().optional().default(() => new Date().toISOString()),
-  answers: z.record(z.any()).default({}),
-  teamInfo: z
-    .object({
-      teamName: z.string().optional(),
-      members: z
-        .array(
-          z.object({
-            name: z.string(),
-            email: z.string().email(),
-            rollNumber: z.string().optional(),
-          })
-        )
-        .optional(),
-    })
-    .optional(),
+  eventId: z.string().min(1, "Event ID is required").transform((val) => val.trim()),
+  formId: z.string().optional().nullable(),
+  sourceResponseId: z
+    .union([z.string(), z.number()])
+    .transform((val) => String(val).trim()),
+  respondentEmail: z
+    .string()
+    .min(1, "Respondent email is required")
+    .transform((val) => val.trim()),
+  respondentName: z
+    .string()
+    .optional()
+    .nullable()
+    .transform((val) => (val ? String(val).trim() : undefined)),
+  submittedAt: z
+    .union([z.string(), z.number(), z.null(), z.undefined()])
+    .optional()
+    .transform((val) => {
+      if (!val) return new Date().toISOString();
+      const parsed = new Date(val);
+      return isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+    }),
+  answers: z.record(z.any()).optional().default({}),
+  teamInfo: z.any().optional(),
 });
 
 export type MicrosoftFormsWebhookInput = z.infer<typeof microsoftFormsWebhookSchema>;

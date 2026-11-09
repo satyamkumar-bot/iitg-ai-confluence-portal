@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Payload validation failed",
+          error: `Payload validation failed: ${issueDetails}`, 
           details: validationResult.error.issues,
         },
         { status: 400 }
