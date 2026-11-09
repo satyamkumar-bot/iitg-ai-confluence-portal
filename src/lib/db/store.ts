@@ -920,6 +920,34 @@ class DataStore {
     return { ...updated };
   }
 
+  async deleteRegistration(id: string, actorId?: string): Promise<boolean> {
+    if (isSupabaseConfigured && supabasePublic) {
+      try {
+        await supabasePublic.from("registrations").delete().eq("id", id);
+      } catch (err) {
+        console.error("Supabase deleteRegistration error:", err);
+      }
+    }
+
+    const index = this.registrations.findIndex((r) => r.id === id);
+    if (index >= 0) {
+      const [deleted] = this.registrations.splice(index, 1);
+      await this.addAuditLog({
+        actor_user_id: actorId ?? null,
+        action: "REGISTRATION_DELETED",
+        entity_type: "REGISTRATION",
+        entity_id: id,
+        sanitized_metadata: {
+          referenceNumber: deleted?.reference_number,
+          respondentEmail: deleted?.respondent_email,
+          eventId: deleted?.event_id,
+        },
+      });
+    }
+
+    return true;
+  }
+
   // ============================================================================
   // ANNOUNCEMENTS
   // ============================================================================

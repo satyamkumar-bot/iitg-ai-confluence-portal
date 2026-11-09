@@ -16,6 +16,7 @@ import {
   X,
   RefreshCw,
   ExternalLink,
+  Trash2,
 } from "lucide-react";
 import { formatDate, formatDateTime, getRegistrationStatusBadge, getSyncStatusBadge } from "@/lib/utils";
 import { DemoDataNotice } from "@/components/common/DemoDataNotice";
@@ -44,6 +45,33 @@ export function AdminRegistrationsClient({
   const [newStatus, setNewStatus] = useState<RegistrationStatus>("CONFIRMED");
   const [reviewNotes, setReviewNotes] = useState("");
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteRegistration = async (reg: Registration) => {
+    if (!window.confirm(`Are you sure you want to delete registration ${reg.reference_number} (${reg.respondent_email})? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingId(reg.id);
+    try {
+      const res = await fetch(`/api/admin/registrations/${reg.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to delete registration");
+      }
+
+      setRegistrations((prev) => prev.filter((r) => r.id !== reg.id));
+      if (inspectReg?.id === reg.id) setInspectReg(null);
+      if (statusModalReg?.id === reg.id) setStatusModalReg(null);
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message || "Failed to delete registration");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   // Unmatched Assign state
   const [assignModalReg, setAssignModalReg] = useState<Registration | null>(null);
@@ -356,6 +384,16 @@ export function AdminRegistrationsClient({
                           className="px-2.5 py-1 rounded bg-iitg-navy-900 hover:bg-cyan-700 text-white font-medium text-[11px] transition-colors"
                         >
                           Update Status
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteRegistration(reg)}
+                          disabled={deletingId === reg.id}
+                          className="px-2.5 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 font-medium text-[11px] border border-rose-200 transition-colors inline-flex items-center gap-1 disabled:opacity-50"
+                          title="Delete Registration"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>{deletingId === reg.id ? "Deleting..." : "Delete"}</span>
                         </button>
 
                         {isUnresolved && (

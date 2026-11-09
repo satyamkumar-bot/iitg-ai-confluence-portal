@@ -73,3 +73,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ success: false, error: error?.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== "ORGANIZER") {
+      return NextResponse.json({ success: false, error: "Organizer role required" }, { status: 403 });
+    }
+
+    await dataStore.deleteRegistration(params.id, user.id);
+
+    return NextResponse.json({
+      success: true,
+      message: "Registration deleted successfully",
+    });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error?.message }, { status: 500 });
+  }
+}
