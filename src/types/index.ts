@@ -180,8 +180,8 @@ export interface MicrosoftFormsWebhookPayload {
   sourceResponseId: string;
   respondentEmail: string;
   respondentName?: string;
-  submittedAt: string;
-  answers: Record<string, any>;
+  submittedAt?: string;
+  answers?: Record<string, any>;
   teamInfo?: {
     teamName?: string;
     members?: Array<{ name: string; email: string; rollNumber?: string }>;

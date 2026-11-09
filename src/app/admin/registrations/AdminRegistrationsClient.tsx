@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { formatDate, formatDateTime, getRegistrationStatusBadge, getSyncStatusBadge } from "@/lib/utils";
 import { DemoDataNotice } from "@/components/common/DemoDataNotice";
+import { QuestionnaireAnswersViewer } from "@/components/registrations/QuestionnaireAnswersViewer";
 
 export function AdminRegistrationsClient({
   initialRegistrations,
@@ -426,18 +427,12 @@ export function AdminRegistrationsClient({
 
               <div className="space-y-2">
                 <span className="font-bold text-slate-800 uppercase text-[10px] tracking-wider block">
-                  Questionnaire Answers
+                  Questionnaire Answers & Attachments
                 </span>
-                <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl bg-slate-50/40">
-                  {Object.entries(inspectReg.response_data).map(([q, a], idx) => (
-                    <div key={idx} className="p-3 space-y-1">
-                      <div className="font-semibold text-slate-700">{q}</div>
-                      <div className="p-2 bg-white rounded border border-slate-200 text-slate-900 font-mono text-[11px]">
-                        {typeof a === "object" ? JSON.stringify(a, null, 2) : String(a)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <QuestionnaireAnswersViewer
+                  answers={inspectReg.response_data}
+                  emptyMessage="No questionnaire answers or file uploads recorded for this registration."
+                />
               </div>
             </div>
 

@@ -643,15 +643,42 @@ class DataStore {
             event_slug: (existingRegs[0] as any).events?.slug || event.slug,
           } as Registration;
 
+          const hasAnswers = Boolean(payload.answers && Object.keys(payload.answers).length > 0);
+          if (hasAnswers) {
+            const mergedAnswers = {
+              ...(existing.response_data || {}),
+              ...payload.answers,
+            };
+            try {
+              await supabasePublic
+                .from("registrations")
+                .update({
+                  response_data: mergedAnswers,
+                  source_response_id: payload.sourceResponseId || existing.source_response_id,
+                  submitted_at: payload.submittedAt || existing.submitted_at,
+                  synchronized_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", existing.id);
+
+              existing.response_data = mergedAnswers;
+              existing.source_response_id = payload.sourceResponseId || existing.source_response_id;
+            } catch (updateErr) {
+              console.error("Supabase update existing registration error:", updateErr);
+            }
+          }
+
           await this.addIntegrationLog({
             integration_type: "MICROSOFT_FORMS",
             event_id: event.id,
             event_title: event.title,
             source_reference: payload.sourceResponseId,
             operation: "INGEST_FORM_RESPONSE",
-            outcome: "DUPLICATE_SKIPPED",
+            outcome: hasAnswers ? "SUCCESS" : "DUPLICATE_SKIPPED",
             metadata: {
-              message: "Student already registered for this event. Returned existing registration record.",
+              message: hasAnswers
+                ? "Existing registration updated with fresh questionnaire answers and uploads."
+                : "Student already registered for this event. Returned existing registration record.",
               referenceNumber: existing.reference_number,
               respondentEmail: payload.respondentEmail,
             },
@@ -678,15 +705,28 @@ class DataStore {
     if (existingIndex >= 0) {
       // Idempotency: Return existing without creating duplicate
       const existing = this.registrations[existingIndex];
+      const hasAnswers = Boolean(payload.answers && Object.keys(payload.answers).length > 0);
+      if (hasAnswers) {
+        existing.response_data = {
+          ...(existing.response_data || {}),
+          ...payload.answers,
+        };
+        existing.source_response_id = payload.sourceResponseId || existing.source_response_id;
+        existing.updated_at = new Date().toISOString();
+        existing.synchronized_at = new Date().toISOString();
+      }
+
       await this.addIntegrationLog({
         integration_type: "MICROSOFT_FORMS",
         event_id: event.id,
         event_title: event.title,
         source_reference: payload.sourceResponseId,
         operation: "INGEST_FORM_RESPONSE",
-        outcome: "DUPLICATE_SKIPPED",
+        outcome: hasAnswers ? "SUCCESS" : "DUPLICATE_SKIPPED",
         metadata: {
-          message: "Student already registered for this event. Returned existing registration record.",
+          message: hasAnswers
+            ? "Existing registration updated with fresh questionnaire answers and uploads."
+            : "Student already registered for this event. Returned existing registration record.",
           referenceNumber: existing.reference_number,
           respondentEmail: payload.respondentEmail,
         },
@@ -727,7 +767,7 @@ class DataStore {
       source_response_id: payload.sourceResponseId,
       submitted_at: payload.submittedAt || new Date().toISOString(),
       synchronized_at: new Date().toISOString(),
-      response_data: payload.answers,
+      response_data: payload.answers || {},
       team_data: payload.teamInfo ?? null,
       response_received_status: "RECEIVED",
       // Direct registration confirmation for verified students, review only for external/unmatched

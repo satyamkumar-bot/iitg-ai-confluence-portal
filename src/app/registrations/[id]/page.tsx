@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { formatDateTime, getRegistrationStatusBadge, getSyncStatusBadge } from "@/lib/utils";
 import { DemoDataNotice } from "@/components/common/DemoDataNotice";
+import { QuestionnaireAnswersViewer } from "@/components/registrations/QuestionnaireAnswersViewer";
 
 export default async function RegistrationDetailsPage({
   params,
@@ -197,27 +198,17 @@ export default async function RegistrationDetailsPage({
             </div>
           )}
 
-          {/* Submitted Form Answers */}
+          {/* Submitted Form Answers & Uploads */}
           <div className="space-y-3 pt-2 border-t border-slate-100">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
               <FileText className="w-4 h-4 text-cyan-600" />
-              <span>Submitted Questionnaire Responses</span>
+              <span>Submitted Questionnaire Responses & Attachments</span>
             </h3>
 
-            {Object.keys(registration.response_data).length === 0 ? (
-              <p className="text-xs text-slate-500">No custom question responses recorded.</p>
-            ) : (
-              <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-slate-50/50">
-                {Object.entries(registration.response_data).map(([key, value], idx) => (
-                  <div key={idx} className="p-3.5 text-xs flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                    <div className="font-semibold text-slate-700 sm:w-1/3">{key}</div>
-                    <div className="text-slate-900 sm:w-2/3 break-words font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                      {typeof value === "object" ? JSON.stringify(value, null, 2) : String(value)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <QuestionnaireAnswersViewer
+              answers={registration.response_data}
+              emptyMessage="No custom question responses or attachments recorded."
+            />
           </div>
 
           {/* Footer Actions */}

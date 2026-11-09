@@ -30,7 +30,21 @@ export const microsoftFormsWebhookSchema = z.object({
       const parsed = new Date(val);
       return isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
     }),
-  answers: z.record(z.any()).optional().default({}),
+  answers: z
+    .union([z.record(z.any()), z.string(), z.null(), z.undefined()])
+    .default({})
+    .transform((val) => {
+      if (!val) return {};
+      if (typeof val === "string") {
+        try {
+          const parsed = JSON.parse(val);
+          return typeof parsed === "object" && parsed !== null ? parsed : { response: val };
+        } catch {
+          return { response: val };
+        }
+      }
+      return val;
+    }),
   teamInfo: z
     .object({
       teamName: z.string().optional(),
@@ -45,7 +59,7 @@ export const microsoftFormsWebhookSchema = z.object({
         .optional(),
     })
     .optional(),
-});
+}).passthrough();
 
 export type MicrosoftFormsWebhookInput = z.infer<typeof microsoftFormsWebhookSchema>;
 

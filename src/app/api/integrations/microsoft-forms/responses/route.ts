@@ -77,6 +77,46 @@ export async function POST(req: NextRequest) {
 
     const payload = validationResult.data;
 
+    // Collect any extra top-level fields (e.g. if questions were passed directly at root of HTTP payload)
+    const knownKeys = new Set([
+      "eventid",
+      "event_id",
+      "formid",
+      "form_id",
+      "sourceresponseid",
+      "source_response_id",
+      "responseid",
+      "resourceid",
+      "respondentemail",
+      "respondent_email",
+      "email",
+      "responder",
+      "respondentname",
+      "respondent_name",
+      "name",
+      "submittedat",
+      "submitted_at",
+      "submitdate",
+      "submissiontime",
+      "answers",
+      "teaminfo",
+      "team_info",
+    ]);
+
+    const supplementalAnswers: Record<string, any> = {};
+    for (const [key, val] of Object.entries(rawJson)) {
+      if (!knownKeys.has(key.toLowerCase()) && val !== undefined && val !== null) {
+        supplementalAnswers[key] = val;
+      }
+    }
+
+    if (Object.keys(supplementalAnswers).length > 0) {
+      payload.answers = {
+        ...supplementalAnswers,
+        ...(payload.answers || {}),
+      };
+    }
+
     // 4. Ingest idempotently into store
     const result = await dataStore.ingestMicrosoftFormsWebhook(payload);
 
