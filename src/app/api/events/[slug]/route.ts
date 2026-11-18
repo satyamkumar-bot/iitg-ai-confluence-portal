@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { dataStore } from "@/lib/db/store";
 import { getCurrentUser } from "@/lib/auth/session";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(req: NextRequest, { params }: { params: { slug: string } }) {
   try {
     const event = await dataStore.getEventBySlug(params.slug);
