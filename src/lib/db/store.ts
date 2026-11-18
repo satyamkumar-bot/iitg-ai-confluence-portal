@@ -394,74 +394,117 @@ class DataStore {
   }
 
   async updateEvent(id: string, data: Partial<EventItem>, actorId?: string): Promise<EventItem | null> {
+    let updatedEvent: EventItem | null = null;
+
     if (isSupabaseConfigured && supabasePublic) {
       try {
-        await supabasePublic.from("events").update({ ...data, updated_at: new Date().toISOString() }).eq("id", id);
+        const { data: updatedData, error } = await supabasePublic
+          .from("events")
+          .update({ ...data, updated_at: new Date().toISOString() })
+          .eq("id", id)
+          .select("*")
+          .maybeSingle();
+
+        if (!error && updatedData) {
+          updatedEvent = updatedData as EventItem;
+        } else if (error) {
+          console.error("Supabase updateEvent error:", error);
+        }
       } catch (err) {
         console.error("Supabase updateEvent error:", err);
       }
     }
 
     const index = this.events.findIndex((e) => e.id === id);
-    if (index === -1) return null;
+    if (index >= 0) {
+      this.events[index] = {
+        ...this.events[index],
+        ...data,
+        updated_at: new Date().toISOString(),
+      };
+      if (!updatedEvent) {
+        updatedEvent = { ...this.events[index] };
+      }
+    } else if (updatedEvent) {
+      this.events.unshift(updatedEvent);
+    }
 
-    const updated: EventItem = {
-      ...this.events[index],
-      ...data,
-      updated_at: new Date().toISOString(),
-    };
-    this.events[index] = updated;
+    if (!updatedEvent) return null;
 
     await this.addAuditLog({
       actor_user_id: actorId ?? null,
       action: "EVENT_UPDATED",
       entity_type: "EVENT",
       entity_id: id,
-      sanitized_metadata: { title: updated.title, publication_status: updated.publication_status },
+      sanitized_metadata: { title: updatedEvent.title, publication_status: updatedEvent.publication_status },
     });
 
-    return { ...updated };
+    return { ...updatedEvent };
   }
 
   async archiveEvent(id: string, actorId?: string): Promise<boolean> {
+    let success = false;
+    let eventTitle = "";
+
     if (isSupabaseConfigured && supabasePublic) {
       try {
-        await supabasePublic.from("events").update({
-          archived_at: new Date().toISOString(),
-          publication_status: "ARCHIVED",
-          updated_at: new Date().toISOString(),
-        }).eq("id", id);
+        const { data, error } = await supabasePublic
+          .from("events")
+          .update({
+            archived_at: new Date().toISOString(),
+            publication_status: "ARCHIVED",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id)
+          .select("title")
+          .maybeSingle();
+
+        if (!error && data) {
+          success = true;
+          eventTitle = data.title;
+        }
       } catch (err) {
         console.error("Supabase archiveEvent error:", err);
       }
     }
 
     const index = this.events.findIndex((e) => e.id === id);
-    if (index === -1) return false;
+    if (index >= 0) {
+      this.events[index].archived_at = new Date().toISOString();
+      this.events[index].publication_status = "ARCHIVED";
+      this.events[index].updated_at = new Date().toISOString();
+      eventTitle = eventTitle || this.events[index].title;
+      success = true;
+    }
 
-    this.events[index].archived_at = new Date().toISOString();
-    this.events[index].publication_status = "ARCHIVED";
-    this.events[index].updated_at = new Date().toISOString();
+    if (!success) return false;
 
     await this.addAuditLog({
       actor_user_id: actorId ?? null,
       action: "EVENT_ARCHIVED",
       entity_type: "EVENT",
       entity_id: id,
-      sanitized_metadata: { title: this.events[index].title },
+      sanitized_metadata: { title: eventTitle },
     });
 
     return true;
   }
 
   async unarchiveEvent(id: string, actorId?: string): Promise<boolean> {
+    let success = false;
+
     if (isSupabaseConfigured && supabasePublic) {
       try {
-        await supabasePublic.from("events").update({
-          archived_at: null,
-          publication_status: "PUBLISHED",
-          updated_at: new Date().toISOString(),
-        }).eq("id", id);
+        const { error } = await supabasePublic
+          .from("events")
+          .update({
+            archived_at: null,
+            publication_status: "PUBLISHED",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id);
+
+        if (!error) success = true;
       } catch (err) {
         console.error("Supabase unarchiveEvent error:", err);
       }
@@ -472,7 +515,10 @@ class DataStore {
       this.events[index].archived_at = null;
       this.events[index].publication_status = "PUBLISHED";
       this.events[index].updated_at = new Date().toISOString();
+      success = true;
     }
+
+    if (!success) return false;
 
     await this.addAuditLog({
       actor_user_id: actorId ?? null,
