@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Registration, EventItem, User, RegistrationStatus } from "@/types";
 import {
@@ -17,10 +17,50 @@ import {
   RefreshCw,
   ExternalLink,
   Trash2,
+  Paperclip,
 } from "lucide-react";
 import { formatDate, formatDateTime, getRegistrationStatusBadge, getSyncStatusBadge } from "@/lib/utils";
 import { DemoDataNotice } from "@/components/common/DemoDataNotice";
 import { QuestionnaireAnswersViewer } from "@/components/registrations/QuestionnaireAnswersViewer";
+
+
+function extractAttachments(responseData?: Record<string, any> | null): Array<{ name: string; link: string }> {
+  if (!responseData) return [];
+  const list: Array<{ name: string; link: string }> = [];
+
+  for (const [key, val] of Object.entries(responseData)) {
+    if (!val) continue;
+    if (typeof val === "string") {
+      const trimmed = val.trim();
+      if ((trimmed.startsWith("[") && trimmed.endsWith("]")) || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          const arr = Array.isArray(parsed) ? parsed : [parsed];
+          for (const item of arr) {
+            if (item && typeof item === "object") {
+              const link = item.link || item.url || item.driveUrl;
+              if (link) list.push({ name: item.name || key || "Attachment", link });
+            }
+          }
+        } catch {}
+      } else if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        list.push({ name: key, link: trimmed });
+      }
+    } else if (Array.isArray(val)) {
+      for (const item of val) {
+        if (item && typeof item === "object") {
+          const link = item.link || item.url || item.driveUrl;
+          if (link) list.push({ name: item.name || key || "Attachment", link });
+        }
+      }
+    } else if (typeof val === "object") {
+      const link = val.link || val.url || val.driveUrl;
+      if (link) list.push({ name: val.name || key || "Attachment", link });
+    }
+  }
+
+  return list;
+}
 
 export function AdminRegistrationsClient({
   initialRegistrations,
@@ -46,6 +86,34 @@ export function AdminRegistrationsClient({
   const [reviewNotes, setReviewNotes] = useState("");
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const refreshLive = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const res = await fetch("/api/admin/registrations");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.registrations)) {
+        setRegistrations(data.registrations);
+      }
+    } catch (err) {
+      console.error("Failed to refresh registrations:", err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    setRegistrations(initialRegistrations);
+  }, [initialRegistrations]);
+
+  // Auto-refresh every 12 seconds so new MS Form responses sync live
+  useEffect(() => {
+    const timer = setInterval(() => {
+      refreshLive();
+    }, 12000);
+    return () => clearInterval(timer);
+  }, [refreshLive]);
 
   const handleDeleteRegistration = async (reg: Registration) => {
     if (!window.confirm(`Are you sure you want to delete registration ${reg.reference_number} (${reg.respondent_email})? This action cannot be undone.`)) {
@@ -196,13 +264,26 @@ export function AdminRegistrationsClient({
           </p>
         </div>
 
-        <button
-          onClick={handleExportCsv}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors shrink-0"
-        >
-          <Download className="w-4 h-4 text-slate-600" />
-          <span>Export Authorized CSV</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={refreshLive}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors shrink-0 disabled:opacity-50"
+            title="Check for newly submitted Microsoft Forms responses"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-cyan-600 ${isRefreshing ? "animate-spin" : ""}`} />
+            <span>{isRefreshing ? "Syncing..." : "Refresh Live"}</span>
+          </button>
+
+          <button
+            onClick={handleExportCsv}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-iitg-navy-900 hover:bg-cyan-700 text-white text-xs font-semibold shadow-xs transition-colors shrink-0"
+            title="Download full CSV including all questionnaire columns and attachments"
+          >
+            <Download className="w-4 h-4 text-white" />
+            <span>Export Authorized CSV</span>
+          </button>
+        </div>
       </div>
 
       <DemoDataNotice />
@@ -298,6 +379,7 @@ export function AdminRegistrationsClient({
                 <th className="py-3 px-4">Reference</th>
                 <th className="py-3 px-3">Student / Respondent</th>
                 <th className="py-3 px-3">Event Title</th>
+                <th className="py-3 px-3">Questionnaire & Attachments</th>
                 <th className="py-3 px-3">Registration Status</th>
                 <th className="py-3 px-3">Sync Status</th>
                 <th className="py-3 px-3">Submission Date</th>
@@ -307,7 +389,7 @@ export function AdminRegistrationsClient({
             <tbody className="divide-y divide-slate-100">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
                     No registrations match the selected filters.
                   </td>
                 </tr>
@@ -332,6 +414,8 @@ export function AdminRegistrationsClient({
                         <div className="font-semibold text-slate-900">
                           {reg.student_name ? (
                             reg.student_name
+                          ) : reg.respondent_email ? (
+                            reg.respondent_email.split("@")[0].replace(/[._]/g, " ")
                           ) : (
                             <span className="text-amber-700 font-bold flex items-center gap-1">
                               <AlertTriangle className="w-3 h-3" /> Unmatched Student
@@ -343,8 +427,41 @@ export function AdminRegistrationsClient({
                         </div>
                       </td>
 
-                      <td className="py-3 px-3 max-w-[200px] truncate" title={reg.event_title}>
+                      <td className="py-3 px-3 max-w-[180px] truncate" title={reg.event_title}>
                         <div className="font-medium text-slate-800 truncate">{reg.event_title}</div>
+                      </td>
+
+                      <td className="py-3 px-3">
+                        {(() => {
+                          const ansCount = Object.keys(reg.response_data || {}).length;
+                          const files = extractAttachments(reg.response_data);
+                          if (ansCount === 0) {
+                            return <span className="text-slate-400 text-[11px] italic">No custom answers</span>;
+                          }
+                          return (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium text-[10px] border border-slate-200">
+                                  {ansCount} {ansCount === 1 ? "answer" : "answers"}
+                                </span>
+                                {files.map((f, fIdx) => (
+                                  <a
+                                    key={fIdx}
+                                    href={f.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-50 hover:bg-cyan-100 text-cyan-800 text-[10px] font-bold border border-cyan-200 transition-colors"
+                                    title={`View ${f.name}`}
+                                  >
+                                    <Paperclip className="w-3 h-3 text-cyan-600" />
+                                    <span className="max-w-[100px] truncate">{f.name}</span>
+                                    <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       <td className="py-3 px-3">

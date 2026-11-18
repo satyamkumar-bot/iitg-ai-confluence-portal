@@ -498,7 +498,7 @@ class DataStore {
   }): Promise<Registration[]> {
     if (isSupabaseConfigured && supabasePublic) {
       try {
-        let query = supabasePublic.from("registrations").select("*, events(title, slug)");
+        let query = supabasePublic.from("registrations").select("*, events(title, slug), users(display_name, email)");
         if (options?.studentUserId) {
           query = query.eq("student_user_id", options.studentUserId);
         }
@@ -519,11 +519,15 @@ class DataStore {
         }
         const { data, error } = await query;
         if (!error && data) {
-          let list = data.map((r: any) => ({
-            ...r,
-            event_title: r.events?.title || r.event_title,
-            event_slug: r.events?.slug || r.event_slug,
-          })) as Registration[];
+          let list = data.map((r: any) => {
+            const studentName = r.users?.display_name || r.student_name || (r.respondent_email ? r.respondent_email.split("@")[0].replace(/[._]/g, " ") : null);
+            return {
+              ...r,
+              student_name: studentName,
+              event_title: r.events?.title || r.event_title,
+              event_slug: r.events?.slug || r.event_slug,
+            };
+          }) as Registration[];
 
           if (options?.search) {
             const q = options.search.toLowerCase();
@@ -593,14 +597,17 @@ class DataStore {
       try {
         const { data, error } = await supabasePublic
           .from("registrations")
-          .select("*, events(title, slug)")
+          .select("*, events(title, slug), users(display_name, email)")
           .eq("id", id)
           .maybeSingle();
         if (!error && data) {
+          const d = data as any;
+          const studentName = d.users?.display_name || d.student_name || (d.respondent_email ? d.respondent_email.split("@")[0].replace(/[._]/g, " ") : null);
           return {
-            ...data,
-            event_title: (data as any).events?.title || (data as any).event_title,
-            event_slug: (data as any).events?.slug || (data as any).event_slug,
+            ...d,
+            student_name: studentName,
+            event_title: d.events?.title || d.event_title,
+            event_slug: d.events?.slug || d.event_slug,
           } as Registration;
         }
       } catch (err) {
